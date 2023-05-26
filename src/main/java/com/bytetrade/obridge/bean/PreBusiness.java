@@ -29,4 +29,10 @@ public class PreBusiness {
     Long timestamp;
 
     String orderAppendData;
+
+    Boolean isKyc;
+
+    Boolean sameDid;
+
+    KycInfo kycInfo;
 }

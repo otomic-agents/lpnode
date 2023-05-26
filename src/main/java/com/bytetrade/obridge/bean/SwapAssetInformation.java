@@ -39,4 +39,7 @@ public class SwapAssetInformation {
 
     String appendInformation;
     
+    String jws;
+
+    String did;
 }
