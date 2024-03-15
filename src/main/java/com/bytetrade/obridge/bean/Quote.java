@@ -13,6 +13,8 @@ public class Quote {
     
     QuoteBase quoteBase;
 
+    QuoteAuthenticationLimiter authenticationLimiter;
+
     String quoteName;
 
     Long timestamp;

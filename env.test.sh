@@ -1,0 +1,5 @@
+export REDIS_PORT="30100"
+export REDIS_HOST="18.182.217.128"
+export REDIS_PASSWORD="SY5v7Ki8KI"
+export LPNODE_URI="http://127.0.0.1:9202"
+export RELAY_URI="http://127.0.0.1:9102"

@@ -23,7 +23,9 @@ public class CommandTransferInRefund {
 
     String hashLock;
 
-    Long timeLock;
+    Long stepTimeLock;
+
+    Long agreementReachedTime;
 
     String appendInformation;
 }

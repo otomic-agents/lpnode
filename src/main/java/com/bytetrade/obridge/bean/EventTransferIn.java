@@ -28,7 +28,9 @@ public class EventTransferIn {
 
     String hashLockOriginal;
 
-    Long timeLock;
+    Long stepTimeLock;
+
+    Long agreementReachedTime;
 
     Integer srcChainId;
 

@@ -12,7 +12,7 @@ import com.bytetrade.obridge.bean.PreBusiness;
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class CmdEvent {
-    
+
     public static final String CMD_UPDATE_QUOTE = "CMD_UPDATE_QUOTE";
     public static final String EVENT_QUOTE_REMOVER = "EVENT_QUOTE_REMOVER";
 
@@ -35,9 +35,7 @@ public class CmdEvent {
     public static final String EVENT_TRANSFER_IN_CONFIRM = "EVENT_TRANSFER_IN_CONFIRM";
     public static final String EVENT_TRANSFER_IN_REFUND = "EVENT_TRANSFER_IN_REFUND";
 
-
-
-    String cmd;//update quote, update_business_transfer_out_callback(必须), lock_quote_callback(必须), unlock_quote_callback(非必要), quote_removed_callback(非必要)
+    String cmd;// update quote, update_business_transfer_out_callback(require),lock_quote_callback(require), unlock_quote_callback(option), quote_removed_callback(option)
 
     QuoteData quoteData;
 

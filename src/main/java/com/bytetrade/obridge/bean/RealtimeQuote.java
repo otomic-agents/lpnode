@@ -12,5 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class RealtimeQuote {
     QuoteBase quoteBase;
 
+    QuoteAuthenticationLimiter authenticationLimiter;
+
     String cid;
 }

@@ -33,7 +33,9 @@ public class SwapAssetInformation {
 
     String dstNativeAmountNeed;
 
-    Long timeLock;
+    Long stepTimeLock;
+
+    Long agreementReachedTime;
 
     Quote quote;
 
@@ -42,4 +44,10 @@ public class SwapAssetInformation {
     String jws;
 
     String did;
+
+    String requestor;
+
+    String userSign;
+
+    String lpSign;
 }

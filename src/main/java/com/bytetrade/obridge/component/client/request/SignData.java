@@ -9,27 +9,31 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class CommandTransferInConfirm {
-    
-    String senderWalletName;
+public class SignData {
 
-    String userReceiverAddress;
+    Integer srcChainId;
 
-    String token;
+    String srcAddress;
 
-    String tokenAmount;
+    String srcToken;
 
-    String ethAmount;
+    String srcAmount;
 
-    String hashLock;
+    Integer dstChainId;
+
+    String dstAddress;
+
+    String dstToken;
+
+    String dstAmount;
+
+    String dstNativeAmount;
+
+    String requestor;
+
+    String lpId;
 
     Long stepTimeLock;
 
     Long agreementReachedTime;
-
-    String preimage;
-
-    String appendInformation;
-
-    String transferId;
 }

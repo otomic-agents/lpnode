@@ -29,7 +29,9 @@ public class EventTransferOut {
 
     String hashLock;
 
-    Long timeLock;
+    Long stepTimeLock;
+
+    Long agreementReachedTime;
 
     Long dstChainId;
 

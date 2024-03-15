@@ -7,10 +7,13 @@ import javax.annotation.Resource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -22,6 +25,7 @@ import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.component.LPController;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
+import java.util.Collection;
 
 @Slf4j
 @Service
@@ -35,9 +39,22 @@ public class LPCommandWatcher {
     @Resource
     RedisConfig redisConfig;
 
+    static RedisConnection redisConnection;
+    static byte[][] lastChannels;
+    static LPController lastLpController;
+
     public void exitWatch() {
         for (RedisConnection rc : connections) {
-            rc.getSubscription().unsubscribe();
+            // retrieve list of currently subscribed channels
+            if (rc.getSubscription() != null) {
+                Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
+                if (subscribedChannels != null) {
+                    // unsubscribe from these channels one by one
+                    for (byte[] channel : subscribedChannels) {
+                        rc.getSubscription().unsubscribe(channel);
+                    }
+                }
+            }
         }
         connections.clear();
     }
@@ -54,7 +71,8 @@ public class LPCommandWatcher {
 
             @Override
             public void onMessage(Message message, byte[] pattern) {
-                // log.info("message={}, {}", new String(message.getBody()), new String(message.getChannel()));
+                // log.info("message={}, {}", new String(message.getBody()), new
+                // String(message.getChannel()));
                 String msg = new String(message.getBody());
                 CmdEvent cmdEvent;
                 try {
@@ -94,18 +112,78 @@ public class LPCommandWatcher {
 
     @Async
     public void watchCmds(byte[][] channels, LPController lpController) {
-        RedisConnectionFactory rcf = redisConfig.getRedisTemplate().getConnectionFactory();
-        RedisConnection rc = rcf.getConnection();
-        connections.add(rc);
+        int retries = 1;
+        long threadId = Thread.currentThread().getId();
+        while (true) {
+            try {
+                RedisConnectionFactory rcf = redisConfig.getRedisTemplate().getConnectionFactory();
+                RedisConnection rc = rcf.getConnection();
+                log.warn("Retry watchCmds (" + (retries) + ") threadId: " + threadId);
+                connections.add(rc);
+                log.info("channels:" + channels.length);
+                if (channels.length > 0) {
+                    boolean watchResult = doWatch(rc, lpController, channels);
+                    if (watchResult) {
+                        log.info("exit threadId:" + threadId);
+                        break;
+                    }
+                } else {
+                    break;
+                }
+            } catch (Exception e) {
+                log.error("watchCmds Exception:", e);
+                try {
+                    log.info("retry after 3 seconds");
+                    Thread.sleep(3000);
+                    retries++;
+                } catch (InterruptedException se) {
+                    se.printStackTrace();
+                }
+            }
+        }
+    }
 
-        rc.subscribe(new MessageListener() {
+    @Retryable(value = { Exception.class }, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
+    public boolean doWatch(RedisConnection rc, LPController lpController, byte[][] channels) {
+        try {
 
-            @Override
-            public void onMessage(Message message, byte[] pattern) {
-                LPCommandWatcher.this.notify(message, lpController );
+            if (redisConnection != null) {
+                redisConnection.close();
             }
 
-        }, channels);
+            redisConnection = rc;
+            lastChannels = channels;
+            lastLpController = lpController;
+
+            rc.subscribe(new MessageListener() {
+
+                @Override
+                public void onMessage(Message message, byte[] pattern) {
+                    LPCommandWatcher.this.notify(message, lpController);
+                }
+
+            }, channels);
+            log.info("subscribe exit");
+            return true;
+        } catch (Exception e) {
+            log.error("doWatch error:" + e);
+            // watchCmds(channels, lpController);
+            throw e;
+        }
+    }
+
+    // @Scheduled(fixedRate = 30000)
+    public void sendPingCommand() {
+        log.info("sendPingCommand------->watcher connection " + (redisConnection == null));
+        if (redisConnection != null) {
+            try {
+                String response = redisConnection.ping();
+                log.info("response:" + response);
+            } catch (Exception e) {
+                log.info("-------->restart command watcher<--------");
+                watchCmds(lastChannels, lastLpController);
+            }
+        }
     }
 
     @Async
@@ -114,7 +192,9 @@ public class LPCommandWatcher {
         String channel = new String(message.getChannel());
         CmdEvent cmdEvent;
         LPBridge lpBridge = lpController.getBridgeFromChannel(channel);
-
+        if ("SYSTEM_PING_CHANNEL".equals(channel)) {
+            return;
+        }
         try {
             log.info("Message:" + msg);
             log.info("channel:" + channel);
