@@ -75,6 +75,9 @@ public class LPController {
     @Autowired
     LPCommandWatcher cmdWatcher;
 
+    @Autowired
+    RestClient restClient;
+
     @Value("${relay.uri}")
 	private String relayUri;
 
@@ -158,17 +161,10 @@ public class LPController {
         quotes.add(quoteBase);
 
         
-        String objectResponseEntity = doNotifyBridgeLive(quotes, lpBridge);
+        String objectResponseEntity = restClient.doNotifyBridgeLive(quotes, lpBridge);
 
 
         // log.info("response message:", objectResponseEntity);
-    }
-
-    @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
-    public String doNotifyBridgeLive(List<QuoteBase> quotes, LPBridge lpBridge) {
-        return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/quote_and_live_confirmation", 
-            quotes, String.class);
     }
 
     public void askQuote(AskCmd askCmd) {
@@ -208,16 +204,9 @@ public class LPController {
         }
         
         
-        String objectResponseEntity = doNotifyRealtimeQuote(realtimeQuote, lpBridge);
+        String objectResponseEntity = restClient.doNotifyRealtimeQuote(realtimeQuote, lpBridge);
 
         log.info(objectResponseEntity);
-    }
-
-    @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
-    public String doNotifyRealtimeQuote(RealtimeQuote realtimeQuote, LPBridge lpBridge) {
-        return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/realtime_quote", 
-            realtimeQuote, String.class);
     }
 
     public boolean updateConfig(List<LPBridge> bridges) {
@@ -331,7 +320,7 @@ public class LPController {
 
             SignData signData = new SignData()
                 .setSrcChainId(lpBridge.getBridge().getSrcChainId())
-                .setSrcAddress(resultBusiness.getSwapAssetInformation().getSender())
+                .setSrcAddress(lpBridge.getLpReceiverAddress())
                 .setSrcToken(lpBridge.getBridge().getSrcToken())
                 .setSrcAmount(resultBusiness.getSwapAssetInformation().getAmount())
                 .setDstChainId(lpBridge.getBridge().getDstChainId())
@@ -537,19 +526,12 @@ public class LPController {
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
 
             
-            String objectResponseEntity = doNotifyTransferIn(lpBridge, bfd);
+            String objectResponseEntity = restClient.doNotifyTransferIn(lpBridge, bfd);
 
             log.info("response message:", objectResponseEntity);
         } catch (Exception e) {
             log.error("error", e);
         }
-    }
-
-    @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
-    public String doNotifyTransferIn(LPBridge lpBridge, BusinessFullData bfd) {
-        return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in", 
-            bfd, String.class);
     }
 
     private void onEventConfirm(EventTransferConfirmBox eventBox) {
@@ -684,19 +666,13 @@ public class LPController {
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
             
             
-            String objectResponseEntity = doNotifyTransferInConfirm(lpBridge, bfd);
+            String objectResponseEntity = restClient.doNotifyTransferInConfirm(lpBridge, bfd);
 
             log.info("response message:", objectResponseEntity);
         } catch (Exception e) {
             log.error("error", e);
             return ;
         }
-    }
-
-    private String doNotifyTransferInConfirm(LPBridge lpBridge, BusinessFullData bfd) {
-        return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in_confirm", 
-            bfd, String.class);
     }
 
     public Boolean onTransferOutRefund(BusinessFullData bfdFromRelay) {
@@ -791,7 +767,7 @@ public class LPController {
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
             
             
-            String objectResponseEntity = doNotifyTransferInRefund(lpBridge, bfd);
+            String objectResponseEntity = restClient.doNotifyTransferInRefund(lpBridge, bfd);
 
             log.info("response message:", objectResponseEntity);
         } catch (Exception e) {
@@ -800,10 +776,4 @@ public class LPController {
         }
     }
 
-    @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
-    public String doNotifyTransferInRefund(LPBridge lpBridge, BusinessFullData bfd) {
-        return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in_refund", 
-            bfd, String.class);
-    }
 }
