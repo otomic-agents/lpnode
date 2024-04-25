@@ -8,12 +8,15 @@ import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
+import org.springframework.http.client.HttpComponentsClientHttpRequestFactory;  
 import com.bytetrade.obridge.bean.BusinessFullData;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.QuoteBase;
 import com.bytetrade.obridge.bean.RealtimeQuote;
-
+import org.apache.http.impl.client.HttpClientBuilder;  
+import org.apache.http.impl.client.HttpClients;
+import org.apache.http.client.config.RequestConfig;  
+import org.apache.http.impl.client.DefaultHttpRequestRetryHandler;  
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -25,6 +28,21 @@ public class RestClient {
 
     @Value("${relay.uri}")
 	private String relayUri;
+    private RestTemplate createRestTemplateWithTimeout(int timeout) {  
+        HttpClientBuilder httpClientBuilder = HttpClients.custom();  
+        httpClientBuilder.setRetryHandler(new DefaultHttpRequestRetryHandler(0,false));
+        org.apache.http.client.HttpClient httpClient = httpClientBuilder.setDefaultRequestConfig(  
+                RequestConfig.custom()  
+                        .setConnectTimeout(timeout)  
+                        .setConnectionRequestTimeout(timeout)  
+                        .setSocketTimeout(timeout)  
+                        .build()  
+        ).build();  
+      
+        HttpComponentsClientHttpRequestFactory requestFactory = new HttpComponentsClientHttpRequestFactory(httpClient);  
+        return new RestTemplate(requestFactory);  
+    }  
+  
 
     @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
     public String doNotifyTransferInRefund(LPBridge lpBridge, BusinessFullData bfd) {
@@ -54,9 +72,10 @@ public class RestClient {
             realtimeQuote, String.class);
     }
 
-    @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
+    @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
     public String doNotifyBridgeLive(List<QuoteBase> quotes, LPBridge lpBridge) {
-        return restTemplate.postForObject(
+        RestTemplate timedRestTemplate = createRestTemplateWithTimeout(6000); 
+        return timedRestTemplate.postForObject(
             relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/quote_and_live_confirmation", 
             quotes, String.class);
     }
