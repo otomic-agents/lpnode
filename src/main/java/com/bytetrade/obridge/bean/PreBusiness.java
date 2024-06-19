@@ -12,6 +12,12 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 public class PreBusiness {
 
+    String uuid;
+
+    String outTradeUuid;
+
+    String inTradeUuid;
+
     SwapAssetInformation swapAssetInformation;
 
     String hash;
@@ -23,6 +29,8 @@ public class PreBusiness {
     String hashlockXrp;
 
     String hashlockNear;
+
+    String hashlockSolana;
 
     Boolean locked;
 

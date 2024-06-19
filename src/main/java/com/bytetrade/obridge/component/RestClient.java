@@ -13,6 +13,9 @@ import com.bytetrade.obridge.bean.BusinessFullData;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.QuoteBase;
 import com.bytetrade.obridge.bean.RealtimeQuote;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
 import org.apache.http.impl.client.HttpClientBuilder;  
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.client.config.RequestConfig;  
@@ -60,9 +63,13 @@ public class RestClient {
 
     @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
     public String doNotifyTransferIn(LPBridge lpBridge, BusinessFullData bfd) {
+        String uri = relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in";
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        log.info("request: " + uri);
+        log.info(gson.toJson(bfd));
         return restTemplate.postForObject(
-            relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in", 
-            bfd, String.class);
+                uri,
+                bfd, String.class);
     }
 
     @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
@@ -75,6 +82,9 @@ public class RestClient {
     @Retryable(value = {Exception.class}, maxAttempts = 3, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
     public String doNotifyBridgeLive(List<QuoteBase> quotes, LPBridge lpBridge) {
         RestTemplate timedRestTemplate = createRestTemplateWithTimeout(6000); 
+        String url = relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/quote_and_live_confirmation";
+        log.info("request: " + url);
+        log.info(quotes.toString());
         return timedRestTemplate.postForObject(
             relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/quote_and_live_confirmation", 
             quotes, String.class);

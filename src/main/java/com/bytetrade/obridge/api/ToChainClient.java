@@ -15,6 +15,8 @@ import com.bytetrade.obridge.bean.EventConfirm;
 import com.bytetrade.obridge.bean.EventTransferIn;
 import com.bytetrade.obridge.component.LPController;
 import lombok.extern.slf4j.Slf4j;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 @Slf4j
 @RestController
@@ -29,6 +31,9 @@ public class ToChainClient {
     public Result onRefund(
         @RequestBody EventTransferRefundBox eventBox
     ) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("on_refund:");
+        System.out.println(gson.toJson(eventBox));
         log.info("on_refund:" + eventBox.toString());
         lpController.onRefund(eventBox);
         return new Result(200, "");
@@ -38,6 +43,9 @@ public class ToChainClient {
     public Result onTransferOut(
         @RequestBody EventTransferOutBox eventBox
     ) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("on_transfer_out:");
+        System.out.println(gson.toJson(eventBox));
         log.info("on_transfer_out:" + eventBox.toString());
         lpController.onEventTransferOut(eventBox);
         return new Result(200, "");
@@ -47,6 +55,9 @@ public class ToChainClient {
     public Result onConfirm(
         @RequestBody EventTransferConfirmBox eventBox
     ) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("on_confirm:");
+        System.out.println(gson.toJson(eventBox));
         log.info("on_confirm:" + eventBox.toString());
         lpController.onConfirm(eventBox);
         return new Result(200, "");
@@ -56,6 +67,9 @@ public class ToChainClient {
     public Result onTransferIn(
         @RequestBody EventTransferInBox eventBox
     ) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("on_transfer_in:");
+        System.out.println(gson.toJson(eventBox));
         log.info("on_transfer_in:" + eventBox.toString());
         lpController.onTransferIn(eventBox);
         return new Result(200, "");

@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class CommandTransferIn {
     
+    String uuid; // Solana transactions have UUID
+
     String senderWalletName;
 
     String userReceiverAddress;

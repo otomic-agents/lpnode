@@ -50,4 +50,6 @@ public class SwapAssetInformation {
     String userSign;
 
     String lpSign;
+
+    String LpSignAddress;
 }

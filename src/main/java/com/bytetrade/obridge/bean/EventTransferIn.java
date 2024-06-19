@@ -12,6 +12,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 public class EventTransferIn {
     
+    String uuid;
+    
     String transferId;
 
     String sender;

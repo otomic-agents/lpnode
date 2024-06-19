@@ -9,9 +9,11 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class RequestSignMessage712 implements RequestSignMessage {
+public class RequestSignMessageSolana implements RequestSignMessage {
     
     String walletName;
 
     SignData signData;
 }
+
+

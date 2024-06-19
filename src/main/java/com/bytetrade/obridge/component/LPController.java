@@ -6,7 +6,8 @@ import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
 import java.math.BigInteger;
-
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import org.web3j.crypto.Hash;
@@ -28,8 +29,13 @@ import com.bytetrade.obridge.component.client.request.RequestDoTransferIn;
 import com.bytetrade.obridge.component.client.request.RequestDoTransferInConfirm;
 import com.bytetrade.obridge.component.client.request.RequestDoTransferInRefund;
 import com.bytetrade.obridge.component.client.request.RequestSignMessage712;
+import com.bytetrade.obridge.component.client.request.RequestUUIDSolana;
+import com.bytetrade.obridge.component.client.request.RequestSignMessage;
 import com.bytetrade.obridge.component.client.request.SignData;
-import com.bytetrade.obridge.component.client.response.ResponseSignMessage712;
+import com.bytetrade.obridge.component.client.request.SignMessageFactory;
+import com.bytetrade.obridge.component.client.response.ResponseUUIDSolana;
+import com.bytetrade.obridge.component.client.response.ResponseSignMessage;
+
 import com.bytetrade.obridge.bean.EventTransferOutBox;
 import com.bytetrade.obridge.bean.EventTransferInBox;
 import com.bytetrade.obridge.bean.EventTransferConfirmBox;
@@ -333,31 +339,37 @@ public class LPController {
                 .setStepTimeLock(resultBusiness.getSwapAssetInformation().getStepTimeLock())
                 .setAgreementReachedTime(resultBusiness.getSwapAssetInformation().getAgreementReachedTime());
 
-            RequestSignMessage712 request = new RequestSignMessage712()
-                .setSignData(signData)
-                .setWalletName(lpBridge.getWallet().getName());
+            RequestSignMessage request = SignMessageFactory.createSignMessage(lpBridge.getBridge().getDstChainId())
+                    .setSignData(signData).setWalletName(lpBridge.getWallet().getName());
 
-            // TODO FIXME     
-            // String uri = lpBridge.getSrcClientUri() + "/lpnode/sign_message_712";
-            String uri = lpBridge.getDstClientUri() + "/lpnode/sign_message_712";
 
-            log.info("uri:" + uri);
-            ResponseSignMessage712 objectResponseEntity = restTemplate.postForObject(
-                uri,
-                request,
-                ResponseSignMessage712.class
-            );
-    
+
+            String uri = String.format("%s/lpnode%s", lpBridge.getDstClientUri(),
+                    this.getSignMessageSubPath(lpBridge.getBridge().getDstChainId()));
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println("Signature data:");
+            System.out.println(gson.toJson(request));
+            log.info(String.format("request signature url is:%s", uri));
+            ResponseSignMessage objectResponseEntity = restTemplate.postForObject(
+                    uri,
+                    request,
+                    ResponseSignMessage.class);
+
             resultBusiness.getSwapAssetInformation().setLpSign(objectResponseEntity.getSigned());
             log.info("response message:", objectResponseEntity);
-
+            log.info(String.format("The signature of lp has been completed,signData: %s",
+                    objectResponseEntity.getSigned()));
+            
             // TODO FIXME new bidid
             // bidid
+            System.out.println("result business:");
+            System.out.println(gson.toJson(resultBusiness));
+            
             String bidIdString = 
                 resultBusiness.getSwapAssetInformation().getAgreementReachedTime().toString() +
                 lpBridge.getBridge().getSrcChainId().toString() +
                 // new BigInteger(resultBusiness.getSwapAssetInformation().getSender().substring(2), 16).toString() + 
-                new BigInteger(resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress().substring(2), 16).toString() +
+                AddressHelper.getDecimalAddress(resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(), lpBridge.getBridge().getSrcChainId()) +
                 lpBridge.getBridge().getSrcToken().toString() + 
                 lpBridge.getBridge().getDstChainId().toString() + 
                 new BigInteger(resultBusiness.getSwapAssetInformation().getDstAddress().substring(2), 16).toString() +
@@ -370,7 +382,7 @@ public class LPController {
                 resultBusiness.getSwapAssetInformation().getStepTimeLock().toString() +
                 resultBusiness.getSwapAssetInformation().getUserSign().toString() +
                 resultBusiness.getSwapAssetInformation().getLpSign().toString();
-
+            log.info(AddressHelper.getDecimalAddress(resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(), lpBridge.getBridge().getSrcChainId()));
             log.info("bidIdString:" + bidIdString.toString());
 
             String businessHash = Hash.sha3String(bidIdString);
@@ -387,16 +399,35 @@ public class LPController {
 
         return resultBusiness;
     }
-
+    private String getSignMessageSubPath(Integer chainId) {
+        String path = "";
+        switch (chainId) {
+            case 9006:
+            case 9000:
+            case 60:
+            case 614:
+            case 966:
+            case 397:
+                path = "/sign_message_712";
+                break;
+            case 501:
+                path = "/sign_message";
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid chainId");
+        }
+        return path;
+    }
     public Boolean onEventTransferOut(EventTransferOutBox eventBox) {
 
         String bidId = getHexString(eventBox.getEventParse().getBidId());
         log.info("onEventTransferOut:" + bidId);
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
         for(String businessId : lockedBusinessList) {
             if(businessId.equalsIgnoreCase(bidId)){
                 transferOutEventMap.put(businessId, true);
-
                 log.info("add transferOutId:" + eventBox.getEventParse().getTransferId());
+                System.out.println(gson.toJson(eventBox));
                 transferOutIdList.add(eventBox.getEventParse().getTransferId());
                 lockedBusinessList.remove(businessId);
                 break;
@@ -440,7 +471,7 @@ public class LPController {
     }
 
     public void transferIn(BusinessFullData bfd, LPBridge lpBridge) {
-
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
         log.info("do transfer in");
         CommandTransferIn commandTransferIn = new CommandTransferIn()
             .setSenderWalletName(lpBridge.getWallet().getName())
@@ -461,15 +492,35 @@ public class LPController {
             commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockNear());
         } else if (dstChainId == 144) {
             commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockXrp());
+        } else if (dstChainId == 501) {
+            commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockSolana());
         }
-        
+        if (dstChainId == 501) {
+            String uuidUri = lpBridge.getDstClientUri() + "/lpnode/get_uuid";
+            RequestUUIDSolana requestUUIDSolana = new RequestUUIDSolana();
+            ResponseUUIDSolana responseUUIDSolana = restTemplate.postForObject(
+                    uuidUri,
+                    requestUUIDSolana,
+                    ResponseUUIDSolana.class);
+            log.info(String.format("response a uuid:%s", responseUUIDSolana.getUuid()));
+            commandTransferIn.setUuid(responseUUIDSolana.getUuid());
+        }
+        String json = gson.toJson(bfd);
+        System.out.println(json);
+        System.out.println(commandTransferIn);
         redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_ID_SHADOW, commandTransferIn.getHashLock(), commandTransferIn.getSrcTransferId());
-
-        Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_STANDARD);
         RequestDoTransferIn request = new RequestDoTransferIn()
-            .setTransactionType("LOCAL_PADDING")
-            .setCommandTransferIn(commandTransferIn)
-            .setGas(gas);
+                .setTransactionType("LOCAL_PADDING")
+                .setCommandTransferIn(commandTransferIn);
+        
+        if (ChainSetting.getInstance().needGasSetting(dstChainId)) {
+            Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_FAST);
+            request.setGas(gas);
+        }
+
+        String requestJson = gson.toJson(request);
+        System.out.println("send request to trade [transferIn]");
+        System.out.println(requestJson);
 
         try {
             log.info("RequestDoTransferIn:" + objectMapper.writeValueAsString(request));
@@ -490,6 +541,10 @@ public class LPController {
     }
 
     public void onTransferIn(EventTransferInBox eventBox) {
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("onTransferIn:");
+        System.out.println(gson.toJson(eventBox));
+
         try {
             if(eventBox.getMatchingHashlock() != null && eventBox.getMatchingHashlock() == true) {
                 //matching hashlock (XRP) 
@@ -500,13 +555,12 @@ public class LPController {
             //fetch business
             String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE, eventBox.getEventParse().getSrcTransferId());
             BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
-
             if(eventBox.getMatchingHashlock() != null && eventBox.getMatchingHashlock() == true) {
                 //sync business
                 LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
                 eventBox.getEventParse().setSrcChainId(lpBridge.getBridge().getSrcChainId());
             }
-
+            bfd.getPreBusiness().setInTradeUuid(eventBox.getEventParse().getUuid());
             //update cache
             eventBox.getEventParse().setTransferInfo(eventBox.getTransferInfo());
             bfd.setEventTransferIn(eventBox.getEventParse());
@@ -521,7 +575,7 @@ public class LPController {
             
             //call relay
             LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
-
+            
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN);
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
 
@@ -583,7 +637,12 @@ public class LPController {
 
     public void transferInConfirm(BusinessFullData bfd, LPBridge lpBridge){
         log.info("do transfer in confirm");
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("do transfer in confirm:");
+        System.out.println(gson.toJson(bfd));
+        
         CommandTransferInConfirm commandTransferInConfirm = new CommandTransferInConfirm()
+            .setUuid(bfd.getEventTransferIn().getTransferId())
             .setSenderWalletName(lpBridge.getWallet().getName())
             .setUserReceiverAddress(bfd.getEventTransferOut().getDstAddress())
             .setToken(bfd.getEventTransferOut().getDstToken())
@@ -699,8 +758,13 @@ public class LPController {
     }
 
     public void transferInRefund(BusinessFullData bfd, LPBridge lpBridge){
+
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("transferInRefund info:");
+        System.out.println(gson.toJson(bfd));
         log.info("do transfer in refund");
         CommandTransferInRefund commandTransferInRefund = new CommandTransferInRefund()
+            .setUuid(bfd.getEventTransferIn().getTransferId())
             .setSenderWalletName(lpBridge.getWallet().getName())
             .setUserReceiverAddress(bfd.getEventTransferOut().getDstAddress())
             .setToken(bfd.getEventTransferOut().getDstToken())
