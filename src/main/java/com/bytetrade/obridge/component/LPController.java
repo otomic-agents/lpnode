@@ -444,13 +444,23 @@ public class LPController {
         try {
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE, bfd.getEventTransferOut().getTransferId(), objectMapper.writeValueAsString(bfd));
 
+            long startTime = System.currentTimeMillis();
+            long maxTimeout = 1000 * 60 * 3; // After a period of time, timeout
+            long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
+            long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
             Boolean doubleCheck = false;
-            while(!doubleCheck) {
+            
+            while (!doubleCheck && (System.currentTimeMillis() - startTime) < maxTimeout) {
                 Boolean hit = transferOutEventMap.get(getHexString(bfd.getEventTransferOut().getBidId()));
                 doubleCheck = hit != null && hit == true;
-
+                // Check if logging is required based on the specified interval
+                if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
+                    log.info(String.format("Still waiting for the condition to be satisfied,bid:%s",
+                            getHexString(bfd.getEventTransferOut().getBidId())));
+                    lastLogTime = System.currentTimeMillis(); // Update the time of the last log output
+                }
                 try {
-                    Thread.sleep(500);
+                    Thread.sleep(1000);
                 } catch (Exception e) {
                     log.error("error", e);
                 }
