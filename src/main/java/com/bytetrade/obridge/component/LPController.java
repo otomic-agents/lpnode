@@ -298,10 +298,17 @@ public class LPController {
         } catch (Exception e) {
             log.error("error", e);
         }
-
-        //wait callback
+        long startTime = System.currentTimeMillis();
+        long maxTimeout = 1000 * 60 * 3; // After a period of time, timeout
+        long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
+        long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
+        // wait callback
         CmdEvent callbackEvent = null;
-        while(callbackEvent == null) {
+        while (callbackEvent == null && (System.currentTimeMillis() - startTime) < maxTimeout) {
+            if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
+                log.info("Still waiting for callback event");
+                lastLogTime = System.currentTimeMillis(); // Update the time of the last log output
+            }
             try {
                 Thread.sleep(1000);
             } catch (Exception e) {
