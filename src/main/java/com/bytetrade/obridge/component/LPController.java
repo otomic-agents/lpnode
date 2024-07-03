@@ -318,6 +318,11 @@ public class LPController {
             log.info("check key:" + preBusiness.getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE);
             callbackEvent = callbackEventMap.get(preBusiness.getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE);
         }
+        if (callbackEvent == null) {
+            log.error("Obtain the event timeout from the callbackEventMap");
+            // throw new Exception("callbackEventMap get Timeout");
+            return null;
+        }
 
         PreBusiness resultBusiness = callbackEvent.getPreBusiness();
 
