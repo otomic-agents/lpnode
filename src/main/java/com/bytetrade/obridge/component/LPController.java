@@ -508,7 +508,7 @@ public class LPController {
             .setAppendInformation(bfd.getPreBusiness().getSwapAssetInformation().getAppendInformation());
 
         Integer dstChainId = lpBridge.getBridge().getDstChainId();
-        if(dstChainId == 9000 || dstChainId == 9006 || dstChainId == 60 || dstChainId == 966){
+        if(dstChainId == 9000 || dstChainId == 9006 || dstChainId == 60 || dstChainId == 966 || dstChainId == 614){
             commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockEvm());
         } else if (dstChainId == 397) {
             commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockNear());
@@ -683,7 +683,7 @@ public class LPController {
             .setGas(gas);
 
         Integer dstChainId = lpBridge.getBridge().getDstChainId();
-        if(dstChainId == 9000 || dstChainId == 9006 || dstChainId == 60 || dstChainId == 966){
+        if (dstChainId == 9000 || dstChainId == 9006 || dstChainId == 60 || dstChainId == 966 || dstChainId == 614) {
             commandTransferInConfirm.setHashLock(bfd.getPreBusiness().getHashlockEvm());
         } else if (dstChainId == 397) {
             commandTransferInConfirm.setHashLock(bfd.getPreBusiness().getHashlockNear());
