@@ -74,6 +74,7 @@ public class RestClient {
 
     @Retryable(value = {Exception.class}, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
     public String doNotifyRealtimeQuote(RealtimeQuote realtimeQuote, LPBridge lpBridge) {
+        System.out.println("doNotifyRealtimeQuote..");
         return restTemplate.postForObject(
             relayUri + "/lpnode/" + lpBridge.getRelayApiKey() + "/realtime_quote", 
             realtimeQuote, String.class);

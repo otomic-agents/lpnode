@@ -28,7 +28,8 @@ public class AddressHelper {
             String hexStr = rawAddress.substring(2);
             return new BigInteger(hexStr, 16).toString();
         } else {
-            throw new IllegalArgumentException("Unsupported address format for conversion.");
+            throw new IllegalArgumentException(
+                    String.format("Unsupported address format for conversion,address:%s", rawAddress));
         }
     }
 

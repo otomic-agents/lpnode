@@ -71,6 +71,8 @@ public class LPCommandWatcher {
 
             @Override
             public void onMessage(Message message, byte[] pattern) {
+                long currentThreadId = Thread.currentThread().getId();
+                log.info("Processing message in thread with ID: {}", currentThreadId);
                 // log.info("message={}, {}", new String(message.getBody()), new
                 // String(message.getChannel()));
                 String msg = new String(message.getBody());
