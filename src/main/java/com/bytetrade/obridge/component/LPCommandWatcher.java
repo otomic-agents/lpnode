@@ -2,6 +2,9 @@ package com.bytetrade.obridge.component;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 import javax.annotation.Resource;
 
@@ -26,6 +29,10 @@ import com.bytetrade.obridge.component.LPController;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import java.util.Collection;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -42,6 +49,24 @@ public class LPCommandWatcher {
     static RedisConnection redisConnection;
     static byte[][] lastChannels;
     static LPController lastLpController;
+    private static final int CORE_POOL_SIZE = 5;
+    private static final int MAX_POOL_SIZE = 30;
+    private static final long KEEP_ALIVE_TIME = 60L;
+
+    private static final TimeUnit TIME_UNIT = TimeUnit.SECONDS;
+    private static final int QUEUE_CAPACITY = 20;
+
+    private static ExecutorService executorService;
+
+    static {
+        executorService = new ThreadPoolExecutor(
+            CORE_POOL_SIZE,
+            MAX_POOL_SIZE,
+            KEEP_ALIVE_TIME,
+            TIME_UNIT,
+            new LinkedBlockingQueue<>(QUEUE_CAPACITY)
+        );
+    }
 
     public void exitWatch() {
         for (RedisConnection rc : connections) {
@@ -71,14 +96,16 @@ public class LPCommandWatcher {
 
             @Override
             public void onMessage(Message message, byte[] pattern) {
-                long currentThreadId = Thread.currentThread().getId();
-                log.info("Processing message in thread with ID: {}", currentThreadId);
+
                 // log.info("message={}, {}", new String(message.getBody()), new
                 // String(message.getChannel()));
                 String msg = new String(message.getBody());
                 CmdEvent cmdEvent;
                 try {
                     log.info("Message:" + msg);
+                    long currentThreadId = Thread.currentThread().getId();
+                    // log.info("Processing message in thread with ID: {}", currentThreadId);
+                    log.info("id--" + currentThreadId);
                     cmdEvent = objectMapper.readValue(msg, CmdEvent.class);
                     switch (cmdEvent.getCmd()) {
                         case CmdEvent.CMD_UPDATE_QUOTE:
@@ -161,7 +188,15 @@ public class LPCommandWatcher {
 
                 @Override
                 public void onMessage(Message message, byte[] pattern) {
-                    LPCommandWatcher.this.notify(message, lpController);
+                    executorService.submit(() -> {
+                        long currentThreadId = Thread.currentThread().getId();
+                        log.info("Processing message in thread with ID: {}", currentThreadId);
+                        long startTime = System.nanoTime(); 
+                        LPCommandWatcher.this.notify(message, lpController); 
+                        long endTime = System.nanoTime(); 
+                        long elapsedTimeMs = (endTime - startTime) / 1_000_000;
+                        log.info("Time taken to execute notify: {} ms", elapsedTimeMs);
+                    });
                 }
 
             }, channels);
