@@ -99,6 +99,11 @@ public class RestClient {
                 })
                 .body(Mono.just(realtimeQuote), RealtimeQuote.class)
                 .retrieve()
+                .onStatus(e -> e.isError(), resp -> {
+                    System.out.println("request error: " + resp.statusCode().value() + " "
+                                + resp.statusCode().getReasonPhrase());
+                    return Mono.error(new RuntimeException("request error"));
+                 })
                 .bodyToMono(String.class);
         String resultText = result.block();
         log.info("realtime_quote response:{} ", resultText);
@@ -119,6 +124,11 @@ public class RestClient {
                 })
                 .body(Mono.just(quotes), QuoteBase.class)
                 .retrieve()
+                .onStatus(e -> e.isError(), resp -> {
+                        System.out.println("request error: " + resp.statusCode().value() + " "
+                                    + resp.statusCode().getReasonPhrase());
+                        return Mono.error(new RuntimeException("request error"));
+                 })
                 .bodyToMono(String.class);
         String resultText = result.block();
         log.info("response:{}", resultText);
