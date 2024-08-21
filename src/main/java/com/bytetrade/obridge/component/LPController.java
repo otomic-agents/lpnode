@@ -5,6 +5,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.math.BigInteger;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -68,6 +72,9 @@ public class LPController {
     public static final String KEY_BUSINESS_CACHE = "KEY_BUSINESS_CACHE";
     public static final String KEY_BUSINESS_ID_SHADOW = "KEY_BUSINESS_ID_SHADOW";
     public static final String KEY_BUSINESS_APPEND = "KEY_BUSINESS_APPEND";
+
+    @Autowired
+    private ExecutorService exePoolService;
 
     @Resource
     RedisConfig redisConfig;
@@ -595,8 +602,16 @@ public class LPController {
             
             log.info("bfd:" + objectMapper.writeValueAsString(bfd));
             
+            
             //call relay
             LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+            // if user confirm timeout
+
+            exePoolService.submit(() -> {
+                log.info("🫎 execute check in new thread");
+                refundTransferInOnUserConfirmTimeout(bfd, lpBridge);
+            });
+            
             
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN);
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
@@ -607,6 +622,47 @@ public class LPController {
             log.info("response message:", objectResponseEntity);
         } catch (Exception e) {
             log.error("error", e);
+        }
+    }
+
+    private void refundTransferInOnUserConfirmTimeout(BusinessFullData businessFullData, LPBridge lpBridge) {
+        long timestamp = businessFullData.getPreBusiness().getSwapAssetInformation().getAgreementReachedTime();
+        long step = businessFullData.getPreBusiness().getSwapAssetInformation().getStepTimeLock();
+        long xInSeconds = step;
+
+        long triggerTimeInMilliseconds = (timestamp * 1000) + (1000 * xInSeconds * 7);
+        log.info("triggerTimeInMilliseconds:{} ", triggerTimeInMilliseconds);
+        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
+        long executeAfter = triggerTimeInMilliseconds - System.currentTimeMillis();
+        if (executeAfter <= 0) {
+            executeAfter = 1000;
+        }
+        log.info("🪰 Set up a timer to prepare for checking the timeout situation of user ConfirmOut ,exec after:{}",
+                executeAfter);
+        executor.schedule(() -> {
+            try {
+                log.info("🪰 Time's up...");
+                String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
+                        businessFullData.getEventTransferOut().getTransferId());
+                BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
+                if (bfd.getEventTransferOutConfirm() == null || bfd.getEventTransferOutConfirm().getTransferId() == null
+                        || bfd.getEventTransferOutConfirm().getTransferId() == "") {
+                    log.info("🪰 user not confirmOut");
+                    transferInRefund(businessFullData, lpBridge);
+                } else {
+                    log.info("🐸 user confirm out all right");
+                }
+            } catch (Exception e) {
+                log.error("process user confirm timeoutt error:{}", e.getMessage());
+            }
+        }, executeAfter, TimeUnit.MILLISECONDS);
+
+        executor.shutdown();
+
+        try {
+            executor.awaitTermination(1200, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 
