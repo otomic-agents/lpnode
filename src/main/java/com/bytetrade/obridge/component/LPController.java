@@ -227,8 +227,6 @@ public class LPController {
     }
 
     public boolean updateConfig(List<LPBridge> bridges, boolean writeCache) {
-
-        cmdWatcher.exitWatch();
         byte[][] channels = new byte[bridges.size() + 1][];
         int i = 0;
         for (LPBridge lpBridge : bridges) {
@@ -630,7 +628,7 @@ public class LPController {
         long step = businessFullData.getPreBusiness().getSwapAssetInformation().getStepTimeLock();
         long xInSeconds = step;
 
-        long triggerTimeInMilliseconds = (timestamp * 1000) + (1000 * xInSeconds * 7);
+        long triggerTimeInMilliseconds = (timestamp * 1000) + (1000 * xInSeconds * 7) + (1000 * 60 * 3);
         log.info("triggerTimeInMilliseconds:{} ", triggerTimeInMilliseconds);
         ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         long executeAfter = triggerTimeInMilliseconds - System.currentTimeMillis();
@@ -645,16 +643,21 @@ public class LPController {
                 String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
                         businessFullData.getEventTransferOut().getTransferId());
                 BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
+                if (bfd.getEventTransferInConfirm()!=null){
+                    log.info("🪰 lp has already confirmed in ");
+                    return;
+                }
                 if (bfd.getEventTransferOutConfirm() == null || bfd.getEventTransferOutConfirm().getTransferId() == null
                         || bfd.getEventTransferOutConfirm().getTransferId() == "") {
                     log.info("🪰 user not confirmOut");
                     transferInRefund(businessFullData, lpBridge);
-                } else {
-                    log.info("🐸 user confirm out all right");
-                }
+                    return;
+                } 
+                log.info("🐸 user confirm out all right");
             } catch (Exception e) {
                 log.error("process user confirm timeoutt error:{}", e.getMessage());
             }
+            return;
         }, executeAfter, TimeUnit.MILLISECONDS);
 
         executor.shutdown();
