@@ -130,6 +130,7 @@ public class LPController {
             LPConfigCache bridgesBox = objectMapper.readValue(configStr, LPConfigCache.class);
             log.info("LPController bridges:" + bridgesBox.toString());
             updateConfig(bridgesBox.getBridges(), false);
+            cmdWatcher.watchCmds(this);
         } catch (Exception e) {
             log.error("error", e);
         }
@@ -223,10 +224,12 @@ public class LPController {
     }
 
     public boolean updateConfig(List<LPBridge> bridges) {
-        return updateConfig(bridges, true);
+        boolean updated = updateConfig(bridges, true);
+        return updated;
     }
 
     public boolean updateConfig(List<LPBridge> bridges, boolean writeCache) {
+        log.info("in coming bridge config, bridge size:{} ,write cache:{}", bridges.size(), writeCache);
         byte[][] channels = new byte[bridges.size() + 1][];
         int i = 0;
         for (LPBridge lpBridge : bridges) {
@@ -235,8 +238,9 @@ public class LPController {
             i++;
         }
         channels[i] = "SYSTEM_PING_CHANNEL".getBytes();
+        log.info("channels size:{}", channels.length);
         log.info("channels:" + channels);
-        cmdWatcher.watchCmds((byte[][]) channels, this);
+        cmdWatcher.updateWatch((byte[][]) channels,this);
 
         if(writeCache) {
             try {

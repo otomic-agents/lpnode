@@ -52,8 +52,6 @@ public class LPCommandWatcher {
     RedisConfig redisConfig;
 
     static RedisConnection redisConnection;
-    static byte[][] lastChannels;
-    static LPController lastLpController;
     private static final int CORE_POOL_SIZE = 5;
     private static final int MAX_POOL_SIZE = 30;
     private static final long KEEP_ALIVE_TIME = 60L;
@@ -61,7 +59,8 @@ public class LPCommandWatcher {
     private ExecutorService exePoolService;
     private static final TimeUnit TIME_UNIT = TimeUnit.SECONDS;
     private static final int QUEUE_CAPACITY = 20;
-
+    private byte[][] listenChannels;
+    private LPController lpController;
     private static ExecutorService executorService;
 
     static {
@@ -74,20 +73,24 @@ public class LPCommandWatcher {
         );
     }
 
-    private void exitWatch() {
+    public void exitWatch() {
         log.info("Close the existing redis connection.");
-        for (RedisConnection rc : connections) {
-            // retrieve list of currently subscribed channels
-            rc.close();
-            // if (rc.getSubscription() != null) {
-            //     Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
-            //     if (subscribedChannels != null) {
-            //         // unsubscribe from these channels one by one
-            //         for (byte[] channel : subscribedChannels) {
-            //             rc.getSubscription().unsubscribe(channel);
-            //         }
-            //     }
-            // }
+        try{
+            for (RedisConnection rc : connections) {
+                // retrieve list of currently subscribed channels
+                rc.close();
+                // if (rc.getSubscription() != null) {
+                //     Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
+                //     if (subscribedChannels != null) {
+                //         // unsubscribe from these channels one by one
+                //         for (byte[] channel : subscribedChannels) {
+                //             rc.getSubscription().unsubscribe(channel);
+                //         }
+                //     }
+                // }
+            }
+        }catch(Exception e){
+            log.info(e.toString());
         }
         connections.clear();
     }
@@ -127,52 +130,47 @@ public class LPCommandWatcher {
         });
 
     }
+
+    public void updateWatch(byte[][] channels, LPController lpController) {
+        this.listenChannels = channels;
+        this.lpController = lpController;
+        this.exitWatch();
+    }
     @Async
-    public void watchCmds(byte[][] channels, LPController lpController) {
+    public void watchCmds(LPController lpController) {
         int retries = 1;
         long threadId = Thread.currentThread().getId();
-        while (true) {
+        for (;;){
             try {
-                exitWatch();
+                log.info("execute watchCmds ,new channel size:{}", this.listenChannels.length);
                 RedisConnectionFactory rcf = redisConfig.getRedisTemplate().getConnectionFactory();
                 RedisConnection rc = rcf.getConnection();
                 
-                log.warn("Retry watchCmds (" + (retries) + ") threadId: " + threadId);
+                log.warn("watchCmds (" + (retries) + ") threadId: " + threadId);
                 connections.add(rc);
-                log.info("channels:" + channels.length);
-                if (channels.length > 0) {
-                    boolean watchResult = doWatch(rc, lpController, channels);
+                log.info("channels:" + this.listenChannels.length);
+                if (this.listenChannels.length > 0) {
+                    boolean watchResult = doWatch(rc, lpController);
                     if (watchResult) {
                         log.info("exit threadId:" + threadId);
-                        break;
                     }
-                } else {
-                    break;
-                }
+                } 
+                log.info("retry watchCmds after 3 seconds ,watch exit");
             } catch (Exception e) {
                 log.error("watchCmds Exception:", e);
-                try {
-                    log.info("retry watchCmds after 3 seconds");
+                log.info("retry watchCmds after 3 seconds, watch error");
+            }finally{
+                try{
                     Thread.sleep(3000);
-                    retries++;
-                } catch (InterruptedException se) {
-                    se.printStackTrace();
+                }catch (Exception e) {
+                    log.info(e.toString());
                 }
             }
-        }
+        }  
     }
 
-    public boolean doWatch(RedisConnection rc, LPController lpController, byte[][] channels) {
+    public boolean doWatch(RedisConnection rc, LPController lpController) {
         try {
-
-            if (redisConnection != null) {
-                redisConnection.close();
-            }
-
-            redisConnection = rc;
-            lastChannels = channels;
-            lastLpController = lpController;
-
             rc.subscribe(new MessageListener() {
                 @Override
                 public void onMessage(Message message, byte[] pattern) {
@@ -187,7 +185,7 @@ public class LPCommandWatcher {
                     });
                 }
 
-            }, channels);
+            }, this.listenChannels);
             log.info("subscribe exit");
             return true;
         } catch (Exception e) {
