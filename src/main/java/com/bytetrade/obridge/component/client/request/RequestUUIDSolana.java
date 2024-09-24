@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component.client.response;
+package com.bytetrade.obridge.component.client.request;
 
 import lombok.*;
 import lombok.experimental.Accessors;
@@ -9,11 +9,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class ResponseSignMessage712 {
-    
-    private int code;
-    
-    private String message;
 
-    private String signed;
+public class RequestUUIDSolana {
+    
 }

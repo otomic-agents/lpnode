@@ -11,6 +11,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @NoArgsConstructor
 public class EventTransferOut {
 
+    String uuid;
+
     Long transferOutId;
 
     Long businessId;
