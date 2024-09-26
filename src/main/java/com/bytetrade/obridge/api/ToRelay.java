@@ -43,7 +43,10 @@ public class ToRelay {
         @RequestBody PreBusiness business
     ) {
         PreBusiness resultBusiness = lpController.onLockQuote(business);
-        ResultLockQuote result = new ResultLockQuote(200, "", resultBusiness);
+        ResultLockQuote result =  new ResultLockQuote(200, "", resultBusiness);
+        if (resultBusiness.getLocked()==false){
+             result = new ResultLockQuote(32011, resultBusiness.getLockMessage(), resultBusiness);
+        }
         log.info("result:" + result.toString());
         return result;
     }

@@ -34,6 +34,8 @@ public class PreBusiness {
 
     Boolean locked;
 
+    String lockMessage;
+
     Long timestamp;
 
     String orderAppendData;

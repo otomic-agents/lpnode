@@ -342,7 +342,10 @@ public class LPController {
         // log.info("salt:" + salt);
         // resultBusiness.setLpSalt(salt);
         
-
+        if (resultBusiness.getLocked()==false){
+            resultBusiness.setLocked(false);
+            return resultBusiness;
+        }
         if(resultBusiness.getLocked() == true) {
 
             SignData signData = new SignData()
