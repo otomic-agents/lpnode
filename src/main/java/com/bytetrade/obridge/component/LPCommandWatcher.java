@@ -176,12 +176,12 @@ public class LPCommandWatcher {
                 public void onMessage(Message message, byte[] pattern) {
                     executorService.submit(() -> {
                         long currentThreadId = Thread.currentThread().getId();
-                        log.info("Processing message in thread with ID: {}", currentThreadId);
-                        long startTime = System.nanoTime(); 
-                        LPCommandWatcher.this.notify(message, lpController); 
-                        long endTime = System.nanoTime(); 
+                        long startTime = System.nanoTime();
+                        LPCommandWatcher.this.notify(message, lpController);
+                        long endTime = System.nanoTime();
                         long elapsedTimeMs = (endTime - startTime) / 1_000_000;
-                        log.info("Time taken to execute notify: {} ms", elapsedTimeMs);
+                        log.info("Processing message in thread with ID: {}  , Time taken to execute notify: {} ms",
+                                currentThreadId, elapsedTimeMs);
                     });
                 }
 
@@ -223,6 +223,7 @@ public class LPCommandWatcher {
                     lpController.transferIn(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
+                    System.out.println("CMD_TRANSFER_IN_CONFIRM" + "#############");
                     lpController.transferInConfirm(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:

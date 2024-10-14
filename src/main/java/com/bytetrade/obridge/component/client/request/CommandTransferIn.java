@@ -25,9 +25,13 @@ public class CommandTransferIn {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Integer srcChainId;
 

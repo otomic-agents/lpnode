@@ -11,8 +11,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class CommandTransferInConfirm {
 
-    String  uuid;
-    
+    String uuid;
+
     String senderWalletName;
 
     String userReceiverAddress;
@@ -25,9 +25,13 @@ public class CommandTransferInConfirm {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     String preimage;
 

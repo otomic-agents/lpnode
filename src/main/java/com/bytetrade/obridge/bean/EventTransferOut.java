@@ -31,9 +31,13 @@ public class EventTransferOut {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Long dstChainId;
 

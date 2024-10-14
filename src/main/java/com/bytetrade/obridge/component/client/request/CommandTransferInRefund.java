@@ -11,7 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 public class CommandTransferInRefund {
     String uuid;
-    
+
     String senderWalletName;
 
     String userReceiverAddress;
@@ -24,9 +24,13 @@ public class CommandTransferInRefund {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     String appendInformation;
 }

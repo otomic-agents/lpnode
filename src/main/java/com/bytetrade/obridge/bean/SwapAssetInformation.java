@@ -33,9 +33,13 @@ public class SwapAssetInformation {
 
     String dstNativeAmountNeed;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+    
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Quote quote;
 

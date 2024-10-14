@@ -33,7 +33,12 @@ public class SignData {
 
     String lpId;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
+
 }

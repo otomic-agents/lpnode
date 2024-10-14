@@ -11,9 +11,9 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 @Accessors(chain = true)
 public class EventTransferIn {
-    
+
     String uuid;
-    
+
     String transferId;
 
     String sender;
@@ -30,9 +30,13 @@ public class EventTransferIn {
 
     String hashLockOriginal;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Integer srcChainId;
 

@@ -29,4 +29,6 @@ public class LPBridge {
     String dstClientUri;
 
     String relayApiKey;
+
+    String relayUri;
 }
