@@ -30,4 +30,6 @@ public class QuoteBase {
     String lpNodeUri;
 
     String quoteHash;
+
+    String relayApiKey;
 }

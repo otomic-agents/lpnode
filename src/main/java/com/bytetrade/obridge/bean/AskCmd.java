@@ -20,4 +20,6 @@ public class AskCmd {
     String bridge;
 
     String amount;
+
+    String relayApiKey;
 }

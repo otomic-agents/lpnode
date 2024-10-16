@@ -17,6 +17,7 @@ import javax.annotation.Resource;
 import org.web3j.crypto.Hash;
 
 import org.springframework.data.redis.core.RedisTemplate;
+import org.apache.logging.log4j.util.Strings;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -127,10 +128,27 @@ public class LPController {
             log.info("LPController bridges:" + bridgesBox.toString());
             updateConfig(bridgesBox.getBridges(), false);
             cmdWatcher.watchCmds(this);
+            reportBridge();
         } catch (Exception e) {
             log.error("error", e);
         }
 
+    }
+
+    public void reportBridge() {
+        Runnable printKeysTask = () -> {
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    System.out.println("Current bridges channel");
+                    lpBridgesChannelMap.keySet().forEach(System.out::println);
+                    Thread.sleep(60000);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); 
+                System.out.println("Task was interrupted.");
+            }
+        };
+        exePoolService.submit(printKeysTask);
     }
 
     public static String getRandomString(int length) {
@@ -145,7 +163,6 @@ public class LPController {
     }
 
     public LPBridge getBridgeFromChannel(String channel) {
-        // log.info("lpBridgesChannelMap:", lpBridgesChannelMap.toString());
         return lpBridgesChannelMap.get(channel);
     }
 
@@ -159,14 +176,9 @@ public class LPController {
                 .setNativeTokenMin(quoteData.getNativeTokenMin())
                 .setCapacity(quoteData.getCapacity())
                 .setLpNodeUri(selfUri)
-                .setLpBridgeAddress(lpBridge.getLpReceiverAddress());
+                .setLpBridgeAddress(lpBridge.getLpReceiverAddress())
+                .setRelayApiKey(lpBridge.getRelayApiKey());
 
-        // try {
-        // log.info("quoteBase:");
-        // log.info(objectMapper.writeValueAsString(quoteBase));
-        // } catch (Exception e) {
-        // log.error("error", e);
-        // }
         List<QuoteBase> quotes = new ArrayList<QuoteBase>();
         quotes.add(quoteBase);
 
@@ -177,7 +189,12 @@ public class LPController {
 
     public void askQuote(AskCmd askCmd) {
         log.info("on ask quote:" + askCmd.toString());
-        LPBridge lpBridge = lpBridges.get(askCmd.getBridge());
+        log.info("maps {}", lpBridgesChannelMap.toString());
+        String[] parts = askCmd.getBridge().split("_");
+        String key = parts[2] + "/" + parts[3] + "_" + parts[0] + "_" + parts[1];
+        LPBridge lpBridge = lpBridgesChannelMap.get(key + "_" + askCmd.getRelayApiKey());
+        log.info("@@@@@@@@@@@@@@@@@@@");
+        log.info("key:{}", key);
         CmdEvent cmdEvent = new CmdEvent()
                 .setCmd(CmdEvent.CMD_ASK_QUOTE)
                 .setCid(askCmd.getCid())
@@ -185,7 +202,9 @@ public class LPController {
         log.info("lpBridge:" + lpBridge.toString());
         log.info("cmdEvent:" + cmdEvent.toString());
         try {
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            log.info("send message to {}", lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey());
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
         }
@@ -226,8 +245,9 @@ public class LPController {
         byte[][] channels = new byte[bridges.size() + 1][];
         int i = 0;
         for (LPBridge lpBridge : bridges) {
-            lpBridgesChannelMap.put(lpBridge.getMsmqName(), lpBridge);
-            channels[i] = lpBridge.getMsmqName().getBytes();
+            String channelKey = lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey();
+            lpBridgesChannelMap.put(channelKey, lpBridge);
+            channels[i] = channelKey.getBytes();
             i++;
         }
         if (writeCache) {
@@ -295,7 +315,8 @@ public class LPController {
 
         CmdEvent cmdEvent = new CmdEvent().setPreBusiness(preBusiness).setCmd(CmdEvent.EVENT_LOCK_QUOTE);
         try {
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
         }
@@ -487,7 +508,8 @@ public class LPController {
                 }
             }
 
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
             return false;
@@ -605,7 +627,8 @@ public class LPController {
             });
 
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN);
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
 
             String objectResponseEntity = restClient.doNotifyTransferIn(lpBridge, bfd);
 
@@ -729,7 +752,8 @@ public class LPController {
                 }
             }
 
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
             return false;
@@ -823,7 +847,8 @@ public class LPController {
             LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
 
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_CONFIRM);
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
 
             String objectResponseEntity = restClient.doNotifyTransferInConfirm(lpBridge, bfd);
 
@@ -852,7 +877,8 @@ public class LPController {
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
                     bfd.getEventTransferIn().getTransferId(), objectMapper.writeValueAsString(bfd));
 
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
             return false;
@@ -935,7 +961,8 @@ public class LPController {
             LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
 
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_REFUND);
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName(), cmdEvent);
+            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
 
             String objectResponseEntity = restClient.doNotifyTransferInRefund(lpBridge, bfd);
 

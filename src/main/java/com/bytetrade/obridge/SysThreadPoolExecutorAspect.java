@@ -1,4 +1,5 @@
 package com.bytetrade.obridge;
+
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
@@ -29,8 +30,9 @@ public class SysThreadPoolExecutorAspect {
                 TIME_UNIT,
                 new LinkedBlockingQueue<>(QUEUE_CAPACITY));
     }
+
     @Bean
-    public ExecutorService exeService(){
+    public ExecutorService exeService() {
         return executorService;
     }
 }

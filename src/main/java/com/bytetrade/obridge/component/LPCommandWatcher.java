@@ -204,9 +204,9 @@ public class LPCommandWatcher {
             return;
         }
         try {
-            log.info("Message:" + msg);
-            log.info("channel:" + channel);
-            log.info("lpBridge:" + lpBridge);
+            log.info("<-Message:" + msg);
+            log.info("<-channel:" + channel);
+            log.info("<-lpBridge:{} ,relayApiKey:{}", lpBridge.getMsmqName(), lpBridge.getRelayApiKey());
             cmdEvent = objectMapper.readValue(msg, CmdEvent.class);
             switch (cmdEvent.getCmd()) {
                 case CmdEvent.CMD_UPDATE_QUOTE:

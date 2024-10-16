@@ -94,8 +94,6 @@ public class RestClient {
                 return resultText;
         }
 
-        @Retryable(value = {
-                        Exception.class }, maxAttempts = 3, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
         public String doNotifyBridgeLive(List<QuoteBase> quotes, LPBridge lpBridge) {
                 String notifyUrl = lpBridge.getRelayUri() + "/relay" + "/lpnode/" + lpBridge.getRelayApiKey()
                                 + "/quote_and_live_confirmation";
@@ -116,7 +114,6 @@ public class RestClient {
                                 })
                                 .bodyToMono(String.class);
                 String resultText = result.block();
-                log.info("response:{}", resultText);
                 return resultText;
         }
 }
