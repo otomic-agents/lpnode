@@ -144,11 +144,27 @@ public class LPController {
                     Thread.sleep(60000);
                 }
             } catch (InterruptedException e) {
-                Thread.currentThread().interrupt(); 
+                Thread.currentThread().interrupt();
                 System.out.println("Task was interrupted.");
             }
         };
         exePoolService.submit(printKeysTask);
+    }
+
+    private LPBridge getBridge(String bridgeName, String relayApiKey) {
+        if (relayApiKey == null) {
+            log.info("🟥🟥🟥🟥🟥🟥🟥🟩🟩🟨🟨🟧🟧 = {}", relayApiKey);
+            return null;
+        }
+        if (relayApiKey.length() <= 3) {
+            log.info("🟥🟥🟥🟥🟥🟥🟥🟩🟩🟨🟨🟧🟧 = {}", relayApiKey);
+            return null;
+        }
+        log.info("🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩🟩= {}", relayApiKey);
+        String[] parts = bridgeName.split("_");
+        String key = parts[2] + "/" + parts[3] + "_" + parts[0] + "_" + parts[1];
+        LPBridge lpBridge = lpBridgesChannelMap.get(key + "_" + relayApiKey);
+        return lpBridge;
     }
 
     public static String getRandomString(int length) {
@@ -272,7 +288,8 @@ public class LPController {
         RedisTemplate redisTemplate = redisConfig.getRedisTemplate();
 
         for (QuoteRemoveInfo quoteRemoveInfo : quoteRemoveInfoList) {
-            LPBridge lpBridge = lpBridges.get(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName());
+            // LPBridge lpBridge = lpBridges.get(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName());
+            LPBridge lpBridge = getBridge(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName(),quoteRemoveInfo.getQuoteBase().getRelayApiKey());
             CmdEvent cmdEvent = new CmdEvent().setQuoteRemoveInfo(quoteRemoveInfo).setCmd(CmdEvent.EVENT_QUOTE_REMOVER);
 
             try {
@@ -286,8 +303,10 @@ public class LPController {
 
     public PreBusiness onLockQuote(PreBusiness preBusiness) {
         // call lp
-        LPBridge lpBridge = lpBridges.get(preBusiness.getSwapAssetInformation().getBridgeName());
-
+        // LPBridge lpBridge =
+        // lpBridges.get(preBusiness.getSwapAssetInformation().getBridgeName());
+        LPBridge lpBridge = getBridge(preBusiness.getSwapAssetInformation().getBridgeName(),
+                preBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
         // check limit
         if (lpBridge.getAuthenticationLimiter().getLimiterState().equals("on")) {
 
@@ -478,7 +497,11 @@ public class LPController {
 
     public Boolean onTransferOut(BusinessFullData bfd) {
 
-        LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+        // LPBridge lpBridge =
+        // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+        LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
+
         bfd.getPreBusiness().setOrderAppendData((String) redisConfig.getRedisTemplate().opsForHash()
                 .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash()));
         CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_OUT);
@@ -600,7 +623,10 @@ public class LPController {
             BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
             if (eventBox.getMatchingHashlock() != null && eventBox.getMatchingHashlock() == true) {
                 // sync business
-                LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+                // LPBridge lpBridge =
+                // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+                LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                        bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
                 eventBox.getEventParse().setSrcChainId(lpBridge.getBridge().getSrcChainId());
             }
             bfd.getPreBusiness().setInTradeUuid(eventBox.getEventParse().getUuid());
@@ -618,7 +644,10 @@ public class LPController {
             log.info("bfd:" + objectMapper.writeValueAsString(bfd));
 
             // call relay
-            LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+            // LPBridge lpBridge =
+            // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+            LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
             // if user confirm timeout
 
             exePoolService.submit(() -> {
@@ -723,8 +752,10 @@ public class LPController {
     }
 
     public Boolean onTransferOutConfirm(BusinessFullData bfdFromRelay) {
-        LPBridge lpBridge = lpBridges.get(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName());
-
+        // LPBridge lpBridge =
+        // lpBridges.get(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName());
+        LPBridge lpBridge = getBridge(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                bfdFromRelay.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
         try {
             String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
                     bfdFromRelay.getEventTransferOut().getTransferId());
@@ -844,7 +875,11 @@ public class LPController {
             log.info("bfd:" + objectMapper.writeValueAsString(bfd));
 
             // call relay
-            LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+            // LPBridge lpBridge =
+            // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+
+            LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
 
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_CONFIRM);
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
@@ -860,8 +895,10 @@ public class LPController {
     }
 
     public Boolean onTransferOutRefund(BusinessFullData bfdFromRelay) {
-        LPBridge lpBridge = lpBridges.get(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName());
-
+        // LPBridge lpBridge =
+        // lpBridges.get(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName());
+        LPBridge lpBridge = getBridge(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                bfdFromRelay.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
         try {
             String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
                     bfdFromRelay.getEventTransferOut().getTransferId());
@@ -958,8 +995,10 @@ public class LPController {
             log.info("bfd:" + objectMapper.writeValueAsString(bfd));
 
             // call relay
-            LPBridge lpBridge = lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
-
+            // LPBridge lpBridge =
+            // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
+            LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_REFUND);
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);

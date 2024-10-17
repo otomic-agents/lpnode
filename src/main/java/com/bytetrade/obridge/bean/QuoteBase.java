@@ -11,20 +11,20 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @NoArgsConstructor
 public class QuoteBase {
     BridgeInfo bridge;
-    
+
     String lpBridgeAddress;
 
-    //hex
+    // hex
     String price;
 
-    //hex
+    // hex
     String nativeTokenPrice;
 
     String nativeTokenMax;
 
     String nativeTokenMin;
-    
-    //hex
+
+    // hex
     String capacity;
 
     String lpNodeUri;
