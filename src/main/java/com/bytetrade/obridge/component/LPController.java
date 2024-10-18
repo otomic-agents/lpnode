@@ -288,8 +288,10 @@ public class LPController {
         RedisTemplate redisTemplate = redisConfig.getRedisTemplate();
 
         for (QuoteRemoveInfo quoteRemoveInfo : quoteRemoveInfoList) {
-            // LPBridge lpBridge = lpBridges.get(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName());
-            LPBridge lpBridge = getBridge(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName(),quoteRemoveInfo.getQuoteBase().getRelayApiKey());
+            // LPBridge lpBridge =
+            // lpBridges.get(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName());
+            LPBridge lpBridge = getBridge(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName(),
+                    quoteRemoveInfo.getQuoteBase().getRelayApiKey());
             CmdEvent cmdEvent = new CmdEvent().setQuoteRemoveInfo(quoteRemoveInfo).setCmd(CmdEvent.EVENT_QUOTE_REMOVER);
 
             try {
@@ -305,6 +307,7 @@ public class LPController {
         // call lp
         // LPBridge lpBridge =
         // lpBridges.get(preBusiness.getSwapAssetInformation().getBridgeName());
+        log.info("lock quote preBusiness:{}", preBusiness);
         LPBridge lpBridge = getBridge(preBusiness.getSwapAssetInformation().getBridgeName(),
                 preBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
         // check limit
@@ -436,11 +439,11 @@ public class LPController {
                     resultBusiness.getSwapAssetInformation().getExpectedSingleStepTime().toString() +
                     resultBusiness.getSwapAssetInformation().getTolerantSingleStepTime().toString() +
                     resultBusiness.getSwapAssetInformation().getEarliestRefundTime().toString() +
-                    resultBusiness.getSwapAssetInformation().getUserSign().toString() +
-                    resultBusiness.getSwapAssetInformation().getLpSign().toString();
-            log.info(AddressHelper.getDecimalAddress(
-                    resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
-                    lpBridge.getBridge().getSrcChainId()));
+                    resultBusiness.getSwapAssetInformation().getUserSign().toString();
+                    // resultBusiness.getSwapAssetInformation().getLpSign().toString();
+                    log.info(AddressHelper.getDecimalAddress(
+                            resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
+                            lpBridge.getBridge().getSrcChainId()));
             log.info("bidIdString:" + bidIdString.toString());
 
             String businessHash = Hash.sha3String(bidIdString);
