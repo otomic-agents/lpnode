@@ -4,40 +4,26 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.connection.RedisConnection;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.Subscription;
-import org.springframework.retry.annotation.Backoff;
-import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
-
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
 import com.bytetrade.obridge.bean.LPBridge;
-import com.bytetrade.obridge.component.LPController;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import java.util.Collection;
-import java.util.Arrays;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Service
@@ -52,57 +38,44 @@ public class LPCommandWatcher {
     RedisConfig redisConfig;
 
     static RedisConnection redisConnection;
-    private static final int CORE_POOL_SIZE = 5;
-    private static final int MAX_POOL_SIZE = 30;
-    private static final long KEEP_ALIVE_TIME = 60L;
     @Autowired
     private ExecutorService exePoolService;
-    private static final TimeUnit TIME_UNIT = TimeUnit.SECONDS;
-    private static final int QUEUE_CAPACITY = 20;
     private byte[][] listenChannels;
     private LPController lpController;
-    private static ExecutorService executorService;
-
-    static {
-        executorService = new ThreadPoolExecutor(
-            CORE_POOL_SIZE,
-            MAX_POOL_SIZE,
-            KEEP_ALIVE_TIME,
-            TIME_UNIT,
-            new LinkedBlockingQueue<>(QUEUE_CAPACITY)
-        );
-    }
 
     public void exitWatch() {
         log.info("Close the existing redis connection.");
-        try{
+        try {
             for (RedisConnection rc : connections) {
                 // retrieve list of currently subscribed channels
+                if (rc.getSubscription() != null) {
+                    Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
+                    if (subscribedChannels != null) {
+                        // unsubscribe from these channels one by one
+                        for (byte[] channel : subscribedChannels) {
+                            rc.getSubscription().unsubscribe(channel);
+                        }
+                    }
+                }
                 rc.close();
-                // if (rc.getSubscription() != null) {
-                //     Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
-                //     if (subscribedChannels != null) {
-                //         // unsubscribe from these channels one by one
-                //         for (byte[] channel : subscribedChannels) {
-                //             rc.getSubscription().unsubscribe(channel);
-                //         }
-                //     }
-                // }
             }
-        }catch(Exception e){
+        } catch (Exception e) {
             log.info(e.toString());
         }
-        connections.clear();
+        try {
+            connections.clear();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
+
     @PostConstruct
     public void init() {
-        exePoolService.submit(() -> {
-            log.info("Periodically display the number of Redis items");
-            ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
-            Runnable task = () -> {
-                log.info("redis connect count = {}", connections.size());
-                int index = 1;
-                try {
+        Runnable printKeysTask = () -> {
+            log.info("redis connect count = {}", connections.size());
+            try {
+                while (!Thread.currentThread().isInterrupted()) {
+                    int index = 1;
                     for (RedisConnection rc : connections) {
                         Subscription subscription = rc.getSubscription();
                         if (subscription == null) {
@@ -121,14 +94,14 @@ public class LPCommandWatcher {
                         }
                         index = index + 1;
                     }
-                } catch (Exception e) {
-                    log.info(e.getMessage());
+                    Thread.sleep(30000);
                 }
-
-            };
-            executor.scheduleAtFixedRate(task, 0, 15, TimeUnit.MINUTES);
-        });
-
+            } catch (Exception runTimeErr) {
+                log.info(runTimeErr.toString());
+                System.out.println("Task was interrupted.");
+            }
+        };
+        exePoolService.submit(printKeysTask);
     }
 
     public void updateWatch(byte[][] channels, LPController lpController) {
@@ -136,16 +109,17 @@ public class LPCommandWatcher {
         this.lpController = lpController;
         this.exitWatch();
     }
+
     @Async
     public void watchCmds(LPController lpController) {
         int retries = 1;
         long threadId = Thread.currentThread().getId();
-        for (;;){
+        for (;;) {
             try {
                 log.info("execute watchCmds ,new channel size:{}", this.listenChannels.length);
                 RedisConnectionFactory rcf = redisConfig.getRedisTemplate().getConnectionFactory();
                 RedisConnection rc = rcf.getConnection();
-                
+
                 log.warn("watchCmds (" + (retries) + ") threadId: " + threadId);
                 connections.add(rc);
                 log.info("channels:" + this.listenChannels.length);
@@ -154,19 +128,19 @@ public class LPCommandWatcher {
                     if (watchResult) {
                         log.info("exit threadId:" + threadId);
                     }
-                } 
+                }
                 log.info("retry watchCmds after 3 seconds ,watch exit");
             } catch (Exception e) {
-                log.error("watchCmds Exception:", e);
+                log.info("watchCmds Exception:", e);
                 log.info("retry watchCmds after 3 seconds, watch error");
-            }finally{
-                try{
+            } finally {
+                try {
                     Thread.sleep(3000);
-                }catch (Exception e) {
+                } catch (Exception e) {
                     log.info(e.toString());
                 }
             }
-        }  
+        }
     }
 
     public boolean doWatch(RedisConnection rc, LPController lpController) {
@@ -174,7 +148,7 @@ public class LPCommandWatcher {
             rc.subscribe(new MessageListener() {
                 @Override
                 public void onMessage(Message message, byte[] pattern) {
-                    executorService.submit(() -> {
+                    exePoolService.submit(() -> {
                         long currentThreadId = Thread.currentThread().getId();
                         long startTime = System.nanoTime();
                         LPCommandWatcher.this.notify(message, lpController);
@@ -223,7 +197,6 @@ public class LPCommandWatcher {
                     lpController.transferIn(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
-                    System.out.println("CMD_TRANSFER_IN_CONFIRM" + "#############");
                     lpController.transferInConfirm(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:

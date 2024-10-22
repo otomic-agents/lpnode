@@ -2,22 +2,24 @@ package com.bytetrade.obridge.bean;
 
 import lombok.*;
 import lombok.experimental.Accessors;
+
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
 @Accessors(chain = true)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
 public class SwapAssetInformation {
-    
+
     String bridgeName;
 
     String lpIdFake;
 
-    String sender;//address, user src address
+    String sender;// address, user src address
 
-    String amount;//uint256, token src amount
+    String amount;// uint256, token src amount
 
     String dstAddress;
 
@@ -34,7 +36,7 @@ public class SwapAssetInformation {
     String dstNativeAmountNeed;
 
     Long agreementReachedTime;
-    
+
     Long expectedSingleStepTime;
 
     Long tolerantSingleStepTime;
@@ -44,7 +46,7 @@ public class SwapAssetInformation {
     Quote quote;
 
     String appendInformation;
-    
+
     String jws;
 
     String did;

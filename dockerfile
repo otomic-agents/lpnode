@@ -1,11 +1,11 @@
-FROM openjdk:17-jdk-alpine AS builder
+FROM openjdk:21-slim AS builder
 
 COPY . /src/
 RUN cd src && ./mvnw package 
 
 
 
-From openjdk:17-jdk-alpine
+From openjdk:21-slim
 
 COPY --from=builder /src/target /app
 

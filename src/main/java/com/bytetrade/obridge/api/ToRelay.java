@@ -19,8 +19,6 @@ import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 import com.bytetrade.obridge.bean.BusinessFullData;
 import com.bytetrade.obridge.component.LPController;
 import lombok.extern.slf4j.Slf4j;
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 
 @Slf4j
 @RestController

@@ -3,6 +3,7 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 
 import com.bytetrade.obridge.bean.PreBusiness;
@@ -10,7 +11,7 @@ import com.bytetrade.obridge.bean.PreBusiness;
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CmdEvent {
 
     public static final String CMD_UPDATE_QUOTE = "CMD_UPDATE_QUOTE";
@@ -35,7 +36,9 @@ public class CmdEvent {
     public static final String EVENT_TRANSFER_IN_CONFIRM = "EVENT_TRANSFER_IN_CONFIRM";
     public static final String EVENT_TRANSFER_IN_REFUND = "EVENT_TRANSFER_IN_REFUND";
 
-    String cmd;// update quote, update_business_transfer_out_callback(require),lock_quote_callback(require), unlock_quote_callback(option), quote_removed_callback(option)
+    String cmd;// update quote,
+               // update_business_transfer_out_callback(require),lock_quote_callback(require),
+               // unlock_quote_callback(option), quote_removed_callback(option)
 
     QuoteData quoteData;
 
