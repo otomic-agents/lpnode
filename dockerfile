@@ -9,8 +9,6 @@ From openjdk:21-slim
 
 COPY --from=builder /src/target /app
 
-RUN apk update && apk add unbound && rm -rf /var/cache/apk/*
-
 USER root
 RUN chmod -R 777 /app
 
