@@ -14,4 +14,4 @@ RUN chmod -R 777 /app
 
 # ENTRYPOINT ["java","-jar","./app/obridge-0.0.1-SNAPSHOT.jar"]
 ENTRYPOINT ["sh", "-c"]
-CMD ["/etc/init.d/unbound start & java -jar ./app/obridge-0.0.1-SNAPSHOT.jar"]
+CMD ["java -jar ./app/obridge-0.0.1-SNAPSHOT.jar"]

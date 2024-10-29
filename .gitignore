@@ -34,3 +34,4 @@ build/
 .vscode/
 env.test.local.sh
 result.log
+lpnode.log

@@ -15,9 +15,11 @@ import com.google.gson.GsonBuilder;
 import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 import org.web3j.crypto.Hash;
+import java.util.concurrent.Future;
 
 import org.springframework.data.redis.core.RedisTemplate;
 import org.apache.logging.log4j.util.Strings;
+import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -66,7 +68,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
-public class LPController {
+public class LPController extends LpControllerBase {
 
     public static final String KEY_CONFIG_CACHE = "KEY_CONFIG_CACHE";
     public static final String KEY_BUSINESS_CACHE = "KEY_BUSINESS_CACHE";
@@ -75,6 +77,9 @@ public class LPController {
 
     @Autowired
     private ExecutorService exePoolService;
+
+    @Autowired
+    private TaskSchedulerService taskSchedulerService;
 
     @Resource
     RedisConfig redisConfig;
@@ -108,15 +113,6 @@ public class LPController {
 
     List<String> transferOutIdList = new ArrayList<String>();
 
-    public String getHexString(String numStr) {
-
-        if (numStr.startsWith("0x")) {
-            return numStr;
-        }
-
-        return "0x" + new BigInteger(numStr).toString(16);
-    }
-
     @PostConstruct
     public void init() {
         log.info("LPController init");
@@ -132,7 +128,6 @@ public class LPController {
         } catch (Exception e) {
             log.error("error", e);
         }
-
     }
 
     public void reportBridge() {
@@ -167,17 +162,6 @@ public class LPController {
         return lpBridge;
     }
 
-    public static String getRandomString(int length) {
-        String str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
-        Random random = new Random();
-        StringBuffer sb = new StringBuffer();
-        for (int i = 0; i < length; i++) {
-            int number = random.nextInt(62);
-            sb.append(str.charAt(number));
-        }
-        return sb.toString();
-    }
-
     public LPBridge getBridgeFromChannel(String channel) {
         return lpBridgesChannelMap.get(channel);
     }
@@ -199,9 +183,14 @@ public class LPController {
         quotes.add(quoteBase);
         log.info("-> send keep quote message: quotes:{} lpBridge:{}", quotes, lpBridge);
         String objectResponseEntity = restClient.doNotifyBridgeLive(quotes, lpBridge);
-        log.info("response message:", objectResponseEntity);
+        // log.info("response message:", objectResponseEntity);
     }
 
+    /**
+     * from relay
+     * 
+     * @param askCmd
+     */
     public void askQuote(AskCmd askCmd) {
         log.info("<- [Relay HTTP call] on ask quote:" + askCmd.toString());
         log.info("maps {}", lpBridgesChannelMap.toString());
@@ -213,6 +202,7 @@ public class LPController {
         CmdEvent cmdEvent = new CmdEvent()
                 .setCmd(CmdEvent.CMD_ASK_QUOTE)
                 .setCid(askCmd.getCid())
+                .setLpId(lpBridge.getLpId())
                 .setAmount(askCmd.getAmount());
         log.info("lpBridge:" + lpBridge.toString());
         log.info("cmdEvent:" + cmdEvent.toString());
@@ -225,6 +215,13 @@ public class LPController {
         }
     }
 
+    /**
+     * from amm redis channel
+     * 
+     * @param cid
+     * @param quoteData
+     * @param lpBridge
+     */
     public void askReply(String cid, QuoteData quoteData, LPBridge lpBridge) {
         QuoteBase quoteBase = new QuoteBase().setBridge(lpBridge.getBridge())
                 .setPrice(quoteData.getPrice())
@@ -282,10 +279,13 @@ public class LPController {
         return true;
     }
 
+    /**
+     * from relay
+     * 
+     * @param quoteRemoveInfoList
+     */
     public void onQuoteRemoved(List<QuoteRemoveInfo> quoteRemoveInfoList) {
-
         RedisTemplate redisTemplate = redisConfig.getRedisTemplate();
-
         for (QuoteRemoveInfo quoteRemoveInfo : quoteRemoveInfoList) {
             // LPBridge lpBridge =
             // lpBridges.get(quoteRemoveInfo.getQuoteBase().getBridge().getBridgeName());
@@ -298,10 +298,15 @@ public class LPController {
             } catch (Exception e) {
                 log.error("error", e);
             }
-
         }
     }
 
+    /**
+     * from relay lock quote
+     * * @param preBusiness
+     * 
+     * @return
+     */
     public PreBusiness onLockQuote(PreBusiness preBusiness) {
         log.info("lock quote preBusiness:{}", preBusiness);
         LPBridge lpBridge = getBridge(preBusiness.getSwapAssetInformation().getBridgeName(),
@@ -339,18 +344,20 @@ public class LPController {
         long startTime = System.currentTimeMillis();
         long maxTimeout = 1000 * 20; // After a period of time, timeout
         long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
-        long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
+        long logInterval = 5000; // Set log output interval to 10 seconds in milliseconds
         // Wait callback
         CmdEvent callbackEvent = null;
+        long executeStartTime = System.nanoTime();
         while (callbackEvent == null && (System.currentTimeMillis() - startTime) < maxTimeout) {
             if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
                 log.info("Still waiting for callback event");
                 lastLogTime = System.currentTimeMillis(); // Update the time of the last log output
             }
             try {
-                Thread.sleep(500);
+                Thread.sleep(100);
             } catch (Exception e) {
-                log.error("error", e);
+                Thread.currentThread().interrupt();
+                log.error("callbackEvent check Loop interrupt" + e.toString());
             }
             String callbackKey = preBusiness.getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE;
             log.info("Check Lock response message:{} ", callbackKey);
@@ -360,92 +367,93 @@ public class LPController {
             log.error("Obtain the event timeout from the callbackEventMap");
             return null;
         }
-
+        long executeEndTime = System.nanoTime();
+        long duration = executeEndTime - executeStartTime;
+        double durationInMilliseconds = duration / 1_000_000.0;
+        log.info("🪰🪰🪰🪰🪰🪰🪰🪰 Execution time: " + durationInMilliseconds + " milliseconds");
         PreBusiness resultBusiness = callbackEvent.getPreBusiness();
 
-        if (resultBusiness.getLocked() == false) {
+        if (resultBusiness.getLocked() != true) {
             resultBusiness.setLocked(false);
             return resultBusiness;
         }
-        if (resultBusiness.getLocked() == true) {
 
-            SignData signData = new SignData()
-                    .setSrcChainId(lpBridge.getBridge().getSrcChainId())
-                    .setSrcAddress(lpBridge.getLpReceiverAddress())
-                    .setSrcToken(lpBridge.getBridge().getSrcToken())
-                    .setSrcAmount(resultBusiness.getSwapAssetInformation().getAmount())
-                    .setDstChainId(lpBridge.getBridge().getDstChainId())
-                    .setDstAddress(resultBusiness.getSwapAssetInformation().getDstAddress())
-                    .setDstToken(lpBridge.getBridge().getDstToken())
-                    .setDstAmount(resultBusiness.getSwapAssetInformation().getDstAmount())
-                    .setDstNativeAmount(resultBusiness.getSwapAssetInformation().getDstNativeAmount())
-                    .setRequestor(resultBusiness.getSwapAssetInformation().getRequestor())
-                    .setLpId(lpBridge.getLpId())
-                    .setAgreementReachedTime(resultBusiness.getSwapAssetInformation().getAgreementReachedTime())
-                    .setExpectedSingleStepTime(resultBusiness.getSwapAssetInformation().getExpectedSingleStepTime())
-                    .setTolerantSingleStepTime(resultBusiness.getSwapAssetInformation().getTolerantSingleStepTime())
-                    .setEarliestRefundTime(resultBusiness.getSwapAssetInformation().getEarliestRefundTime());
+        SignData signData = new SignData()
+                .setSrcChainId(lpBridge.getBridge().getSrcChainId())
+                .setSrcAddress(lpBridge.getLpReceiverAddress())
+                .setSrcToken(lpBridge.getBridge().getSrcToken())
+                .setSrcAmount(resultBusiness.getSwapAssetInformation().getAmount())
+                .setDstChainId(lpBridge.getBridge().getDstChainId())
+                .setDstAddress(resultBusiness.getSwapAssetInformation().getDstAddress())
+                .setDstToken(lpBridge.getBridge().getDstToken())
+                .setDstAmount(resultBusiness.getSwapAssetInformation().getDstAmount())
+                .setDstNativeAmount(resultBusiness.getSwapAssetInformation().getDstNativeAmount())
+                .setRequestor(resultBusiness.getSwapAssetInformation().getRequestor())
+                .setLpId(lpBridge.getLpId())
+                .setAgreementReachedTime(resultBusiness.getSwapAssetInformation().getAgreementReachedTime())
+                .setExpectedSingleStepTime(resultBusiness.getSwapAssetInformation().getExpectedSingleStepTime())
+                .setTolerantSingleStepTime(resultBusiness.getSwapAssetInformation().getTolerantSingleStepTime())
+                .setEarliestRefundTime(resultBusiness.getSwapAssetInformation().getEarliestRefundTime());
 
-            RequestSignMessage request = SignMessageFactory.createSignMessage(lpBridge.getBridge().getDstChainId())
-                    .setSignData(signData).setWalletName(lpBridge.getWallet().getName());
+        RequestSignMessage request = SignMessageFactory.createSignMessage(lpBridge.getBridge().getDstChainId())
+                .setSignData(signData).setWalletName(lpBridge.getWallet().getName());
 
-            String uri = String.format("%s/lpnode%s", lpBridge.getDstClientUri(),
-                    this.getSignMessageSubPath(lpBridge.getBridge().getDstChainId()));
-            Gson gson = new GsonBuilder().setPrettyPrinting().create();
-            System.out.println("Signature data:");
-            System.out.println(gson.toJson(request));
-            log.info(String.format("request signature url is:%s", uri));
-            ResponseSignMessage objectResponseEntity = restTemplate.postForObject(
-                    uri,
-                    request,
-                    ResponseSignMessage.class);
+        String uri = String.format("%s/lpnode%s", lpBridge.getDstClientUri(),
+                this.getSignMessageSubPath(lpBridge.getBridge().getDstChainId()));
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        System.out.println("Signature data:");
+        System.out.println(gson.toJson(request));
+        log.info(String.format("request signature url is:%s", uri));
+        long signStartTime = System.nanoTime();
+        ResponseSignMessage objectResponseEntity = restTemplate.postForObject(
+                uri,
+                request,
+                ResponseSignMessage.class);
 
-            resultBusiness.getSwapAssetInformation().setLpSign(objectResponseEntity.getSigned());
-            log.info("response message:{}", objectResponseEntity.toString());
-            log.info(String.format("The signature of lp has been completed,signData: %s",
-                    objectResponseEntity.getSigned()));
+        resultBusiness.getSwapAssetInformation().setLpSign(objectResponseEntity.getSigned());
+        long signEndTime = System.nanoTime();
+        long signDuration = signEndTime - signStartTime;
+        double signDurationInMilliseconds = signDuration / 1_000_000.0;
+        log.info("signExecute Time: " + signDurationInMilliseconds + " ms");
+        log.info("response message:{}", objectResponseEntity.toString());
+        log.info(String.format("The signature of lp has been completed,signData: %s",
+                objectResponseEntity.getSigned()));
 
-            // TODO FIXME new bidid
-            // bidid
-            System.out.println("result business:");
-            System.out.println(gson.toJson(resultBusiness));
+        System.out.println("result business:");
+        System.out.println(gson.toJson(resultBusiness));
 
-            String bidIdString = resultBusiness.getSwapAssetInformation().getAgreementReachedTime().toString() +
-                    lpBridge.getBridge().getSrcChainId().toString() +
-                    // new
-                    // BigInteger(resultBusiness.getSwapAssetInformation().getSender().substring(2),
-                    // 16).toString() +
-                    AddressHelper.getDecimalAddress(
-                            resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
-                            lpBridge.getBridge().getSrcChainId())
-                    +
-                    lpBridge.getBridge().getSrcToken().toString() +
-                    lpBridge.getBridge().getDstChainId().toString() +
-                    new BigInteger(resultBusiness.getSwapAssetInformation().getDstAddress().substring(2), 16).toString()
-                    +
-                    lpBridge.getBridge().getDstToken().toString() +
-                    resultBusiness.getSwapAssetInformation().getAmount().toString() +
-                    resultBusiness.getSwapAssetInformation().getDstAmount().toString() +
-                    resultBusiness.getSwapAssetInformation().getDstNativeAmount().toString() +
-                    resultBusiness.getSwapAssetInformation().getRequestor().toString() +
-                    lpBridge.getLpId() +
-                    resultBusiness.getSwapAssetInformation().getExpectedSingleStepTime().toString() +
-                    resultBusiness.getSwapAssetInformation().getTolerantSingleStepTime().toString() +
-                    resultBusiness.getSwapAssetInformation().getEarliestRefundTime().toString() +
-                    resultBusiness.getSwapAssetInformation().getUserSign().toString();
-            // resultBusiness.getSwapAssetInformation().getLpSign().toString();
-            log.info(AddressHelper.getDecimalAddress(
-                    resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
-                    lpBridge.getBridge().getSrcChainId()));
-            log.info("bidIdString:" + bidIdString.toString());
+        String bidIdString = resultBusiness.getSwapAssetInformation().getAgreementReachedTime().toString() +
+                lpBridge.getBridge().getSrcChainId().toString() +
+                AddressHelper.getDecimalAddress(
+                        resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
+                        lpBridge.getBridge().getSrcChainId())
+                +
+                lpBridge.getBridge().getSrcToken().toString() +
+                lpBridge.getBridge().getDstChainId().toString() +
+                new BigInteger(resultBusiness.getSwapAssetInformation().getDstAddress().substring(2), 16).toString()
+                +
+                lpBridge.getBridge().getDstToken().toString() +
+                resultBusiness.getSwapAssetInformation().getAmount().toString() +
+                resultBusiness.getSwapAssetInformation().getDstAmount().toString() +
+                resultBusiness.getSwapAssetInformation().getDstNativeAmount().toString() +
+                resultBusiness.getSwapAssetInformation().getRequestor().toString() +
+                lpBridge.getLpId() +
+                resultBusiness.getSwapAssetInformation().getExpectedSingleStepTime().toString() +
+                resultBusiness.getSwapAssetInformation().getTolerantSingleStepTime().toString() +
+                resultBusiness.getSwapAssetInformation().getEarliestRefundTime().toString() +
+                resultBusiness.getSwapAssetInformation().getUserSign().toString();
+        // resultBusiness.getSwapAssetInformation().getLpSign().toString();
+        log.info(AddressHelper.getDecimalAddress(
+                resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
+                lpBridge.getBridge().getSrcChainId()));
+        log.info("bidIdString:" + bidIdString.toString());
 
-            String businessHash = Hash.sha3String(bidIdString);
-            resultBusiness.setHash(businessHash);
+        String businessHash = Hash.sha3String(bidIdString);
+        resultBusiness.setHash(businessHash);
 
-            lockedBusinessList.add(resultBusiness.getHash());
-            log.info("businessHash:" + resultBusiness.getHash().toString());
-            log.info("Add business in cache:" + resultBusiness.getHash());
-        }
+        lockedBusinessList.add(resultBusiness.getHash());
+        log.info("businessHash:" + resultBusiness.getHash().toString());
+        log.info("Add business in cache:" + resultBusiness.getHash());
 
         redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_APPEND, resultBusiness.getHash(),
                 resultBusiness.getOrderAppendData());
@@ -491,60 +499,69 @@ public class LPController {
         return true;
     }
 
+    /**
+     * This method is invoked by the relay.
+     * 
+     * @param bfd
+     * @return
+     */
+
     public Boolean onTransferOut(BusinessFullData bfd) {
+        exePoolService.submit(() -> {
+            log.info("updateBusinessTransferOut The subsequent actions begin to execute. [{}]",
+                    bfd.getPreBusiness().getHash());
+            LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
 
-        // LPBridge lpBridge =
-        // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
-        LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
-                bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
+            bfd.getPreBusiness().setOrderAppendData((String) redisConfig.getRedisTemplate().opsForHash()
+                    .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash()));
+            CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_OUT);
+            try {
+                redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
+                        bfd.getEventTransferOut().getTransferId(), objectMapper.writeValueAsString(bfd));
 
-        bfd.getPreBusiness().setOrderAppendData((String) redisConfig.getRedisTemplate().opsForHash()
-                .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash()));
-        CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_OUT);
-        try {
-            redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
-                    bfd.getEventTransferOut().getTransferId(), objectMapper.writeValueAsString(bfd));
+                long startTime = System.currentTimeMillis();
+                long maxTimeout = bfd.getPreBusiness().getSwapAssetInformation().getExpectedSingleStepTime();
+                long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
+                long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
+                Boolean doubleCheck = false;
 
-            long startTime = System.currentTimeMillis();
-            long maxTimeout = 1000 * 60 * 3; // After a period of time, timeout
-            long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
-            long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
-            Boolean doubleCheck = false;
-
-            while (!doubleCheck && (System.currentTimeMillis() - startTime) < maxTimeout) {
-                Boolean hit = transferOutEventMap.get(getHexString(bfd.getEventTransferOut().getBidId()));
-                doubleCheck = hit != null && hit == true;
-                // Check if logging is required based on the specified interval
-                if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
-                    log.info(String.format("Still waiting for the condition to be satisfied,bid:%s",
-                            getHexString(bfd.getEventTransferOut().getBidId())));
-                    lastLogTime = System.currentTimeMillis(); // Update the time of the last log output
+                while (!doubleCheck && (System.currentTimeMillis() - startTime) < maxTimeout) {
+                    Boolean hit = transferOutEventMap.get(getHexString(bfd.getEventTransferOut().getBidId()));
+                    doubleCheck = hit != null && hit == true;
+                    // Check if logging is required based on the specified interval
+                    if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
+                        log.info(String.format("Still waiting for the condition to be satisfied,bid:%s",
+                                getHexString(bfd.getEventTransferOut().getBidId())));
+                        lastLogTime = System.currentTimeMillis(); // Update the time of the last log output
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    } catch (Exception e) {
+                        log.error("error", e);
+                    }
                 }
-                try {
-                    Thread.sleep(1000);
-                } catch (Exception e) {
-                    log.error("error", e);
-                }
+
+                redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                        cmdEvent);
+                return true;
+            } catch (Exception e) {
+                log.error("error", e);
+                return false;
             }
-
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
-                    cmdEvent);
-        } catch (Exception e) {
-            log.error("error", e);
-            return false;
-        }
+        });
 
         return true;
     }
 
     public void newCallback(String key, CmdEvent cmdEvent) {
-        log.info("newCallback:" + key);
+        log.info("lock quote callback put: {}", key);
         callbackEventMap.put(key, cmdEvent);
     }
 
     public void transferIn(BusinessFullData bfd, LPBridge lpBridge) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        log.info("do transfer in");
+        log.info("do transfer in  businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferIn commandTransferIn = new CommandTransferIn()
                 .setSenderWalletName(lpBridge.getWallet().getName())
                 .setUserReceiverAddress(bfd.getEventTransferOut().getDstAddress())
@@ -569,8 +586,6 @@ public class LPController {
         } else if (dstChainId == 501) {
             commandTransferIn.setHashLock(bfd.getPreBusiness().getHashlockSolana());
         }
-
-        log.info("commandTransferIn:{}", gson.toJson(commandTransferIn));
         redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_ID_SHADOW, commandTransferIn.getHashLock(),
                 commandTransferIn.getSrcTransferId());
         RequestDoTransferIn request = new RequestDoTransferIn()
@@ -581,7 +596,6 @@ public class LPController {
             Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_FAST);
             request.setGas(gas);
         }
-
         String requestJson = gson.toJson(request);
         log.info("send request to trade [transferIn]");
         log.info("request body:{}", requestJson);
@@ -677,7 +691,6 @@ public class LPController {
         long triggerTimeInMilliseconds = (agreementReachedTime * 1000) + (1000 * expectedSingleStepTime * 3)
                 + (1000 * tolerantSingleStepTime * 4) + (1000 * 60 * 3);
         log.info("triggerTimeInMilliseconds:{} ", triggerTimeInMilliseconds);
-        ScheduledExecutorService executor = Executors.newScheduledThreadPool(1);
         long executeAfter = earliestRefundTime - System.currentTimeMillis() + 1000 * 30;
         if (executeAfter <= 0) {
             executeAfter = 1000;
@@ -699,37 +712,34 @@ public class LPController {
         System.out.printf("%d hours %d minutes %d seconds later%n", hours, minutes, seconds);
 
         log.info(
-                "If the user does not confirm after {} hours {} minutes {} seconds , then a refund will be issued.############🚩🚩🚩🚩🚩",
+                "If the user does not confirm after {} hours {} minutes {} seconds , then a refund will be issued.",
                 hours, minutes, seconds);
-        executor.schedule(() -> {
-            try {
-                log.info("🪰 Time's up...");
-                String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
-                        businessFullData.getEventTransferOut().getTransferId());
-                BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
-                if (bfd.getEventTransferInConfirm() != null) {
-                    log.info("🪰 lp has already confirmed in ");
-                    return;
-                }
-                if (bfd.getEventTransferOutConfirm() == null || bfd.getEventTransferOutConfirm().getTransferId() == null
-                        || bfd.getEventTransferOutConfirm().getTransferId() == "") {
-                    log.info("🪰 user not confirmOut");
-                    transferInRefund(businessFullData, lpBridge);
-                    return;
-                }
-                log.info("🐸 user confirm out all right");
-            } catch (Exception e) {
-                log.error("process user confirm timeoutt error:{}", e.getMessage());
-            }
-            return;
-        }, executeAfter, TimeUnit.MILLISECONDS);
-
-        executor.shutdown();
-
         try {
-            executor.awaitTermination(1200, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
+            taskSchedulerService.scheduleTask(() -> {
+                try {
+                    log.info("🪰 Time's up...");
+                    String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
+                            businessFullData.getEventTransferOut().getTransferId());
+                    BusinessFullData bfd = objectMapper.readValue(cacheData, BusinessFullData.class);
+                    if (bfd.getEventTransferInConfirm() != null) {
+                        log.info("🪰 lp has already confirmed in ");
+                        return;
+                    }
+                    if (bfd.getEventTransferOutConfirm() == null
+                            || bfd.getEventTransferOutConfirm().getTransferId() == null
+                            || bfd.getEventTransferOutConfirm().getTransferId() == "") {
+                        log.info("🪰 user not confirmOut");
+                        transferInRefund(businessFullData, lpBridge);
+                        return;
+                    }
+                    log.info("🐸 user confirm out all right");
+                } catch (Exception e) {
+                    log.error("process user confirm timeoutt error:{}", e.getMessage());
+                }
+                return;
+            }, executeAfter);
+        } catch (SchedulerException e) {
+            log.error("Failed to schedule task: {}", e.getMessage());
         }
     }
 
@@ -788,7 +798,7 @@ public class LPController {
     }
 
     public void transferInConfirm(BusinessFullData bfd, LPBridge lpBridge) {
-        log.info("do transfer in confirm");
+        log.info("do transfer in confirm businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferInConfirm commandTransferInConfirm = new CommandTransferInConfirm()
                 .setUuid(bfd.getEventTransferIn().getTransferId())
                 .setSenderWalletName(lpBridge.getWallet().getName())
@@ -834,6 +844,11 @@ public class LPController {
         log.info("response message:{}", objectResponseEntity.toString());
     }
 
+    /**
+     * chain-client
+     * 
+     * @param eventBox
+     */
     public void onConfirm(EventTransferConfirmBox eventBox) {
         try {
             String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
@@ -924,11 +939,7 @@ public class LPController {
     }
 
     public void transferInRefund(BusinessFullData bfd, LPBridge lpBridge) {
-
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        System.out.println("transferInRefund info:");
-        System.out.println(gson.toJson(bfd));
-        log.info("do transfer in refund");
+        log.info("do transfer in refund businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferInRefund commandTransferInRefund = new CommandTransferInRefund()
                 .setUuid(bfd.getEventTransferIn().getTransferId())
                 .setSenderWalletName(lpBridge.getWallet().getName())

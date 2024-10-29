@@ -154,7 +154,7 @@ public class RedisConfig {
 				if (jedis != null) {
 					try {
 						String response = jedis.ping();
-						System.out.println("Response from redis server: " + response);
+						// System.out.println("Response from redis server: " + response);
 					} catch (Exception e) {
 						e.printStackTrace();
 						// Handle connection error

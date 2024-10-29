@@ -38,8 +38,14 @@ public class ToRelay {
     @PostMapping(value = "{lpnode_api_key}/lock_quote", produces = "application/json;charset=UTF-8")
     public ResultLockQuote lockQuote(
             @RequestBody PreBusiness business) {
+        long startTime = System.nanoTime();
         PreBusiness resultBusiness = lpController.onLockQuote(business);
         ResultLockQuote result = new ResultLockQuote(200, "", resultBusiness);
+        long endTime = System.nanoTime();
+        long duration = endTime - startTime;
+
+        double durationInMilliseconds = duration / 1_000_000.0;
+        log.info("🌍🌍🌍🌍🌍🌍🌍🌍🌍Execution time: " + durationInMilliseconds + " milliseconds");
         if (resultBusiness.getLocked() == false) {
             result = new ResultLockQuote(32011, resultBusiness.getLockMessage(), resultBusiness);
         }
@@ -61,6 +67,7 @@ public class ToRelay {
         log.info("lpnode_api_key:" + lpnode_api_key);
         Boolean arrived = lpController.onTransferOut(bfd);
         if (arrived) {
+            log.info("updateBusinessTransferOut info arrived");
             return new Result(200, "");
         } else {
             return new Result(32006, "lp offline");

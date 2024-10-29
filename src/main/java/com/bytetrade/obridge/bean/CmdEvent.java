@@ -50,5 +50,7 @@ public class CmdEvent {
 
     String cid;
 
+    String lpId;
+
     String amount;
 }

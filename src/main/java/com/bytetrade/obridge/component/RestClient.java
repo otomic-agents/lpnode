@@ -88,7 +88,7 @@ public class RestClient {
     public String doNotifyBridgeLive(List<QuoteBase> quotes, LPBridge lpBridge) {
         String notifyUrl = lpBridge.getRelayUri() + "/relay" + "/lpnode/" + lpBridge.getRelayApiKey()
                 + "/quote_and_live_confirmation";
-        log.info("send quote to relay , url is :{}", notifyUrl);
+        // log.info("send quote to relay , url is :{}", notifyUrl);
         String url = notifyUrl;
         Mono<String> result = webClient.post()
                 .uri(url)
