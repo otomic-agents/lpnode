@@ -50,6 +50,8 @@ import com.bytetrade.obridge.bean.EventTransferRefundBox;
 import com.bytetrade.obridge.bean.EventTransferInConfirm;
 import com.bytetrade.obridge.bean.EventTransferInRefund;
 import com.bytetrade.obridge.bean.AskCmd;
+import com.bytetrade.obridge.bean.BusinessEvent;
+import com.bytetrade.obridge.bean.BusinessEventItem;
 import com.bytetrade.obridge.bean.BusinessFullData;
 import com.bytetrade.obridge.bean.PreBusiness;
 import com.bytetrade.obridge.bean.QuoteAuthenticationLimiter;
@@ -69,7 +71,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Component
 public class LPController extends LpControllerBase {
-
+    public static final String KEY_BUSINESS_EVENT = "KEY_BUSINESS_EVENT";
     public static final String KEY_CONFIG_CACHE = "KEY_CONFIG_CACHE";
     public static final String KEY_BUSINESS_CACHE = "KEY_BUSINESS_CACHE";
     public static final String KEY_BUSINESS_ID_SHADOW = "KEY_BUSINESS_ID_SHADOW";
@@ -116,7 +118,6 @@ public class LPController extends LpControllerBase {
     @PostConstruct
     public void init() {
         log.info("LPController init");
-
         String configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
         log.info("LPController configStr:" + configStr);
         try {
@@ -482,7 +483,10 @@ public class LPController extends LpControllerBase {
     }
 
     public Boolean onEventTransferOut(EventTransferOutBox eventBox) {
-
+        BusinessEvent businessEvent = new BusinessEvent()
+                .setBusinessEvent(BusinessEventItem.LP_EVENT_CHAIN_CLIENT_TRANSFER_OUT.getValue())
+                .setSystem("LP_NODE");
+        redisConfig.getRedisTemplate().convertAndSend(KEY_BUSINESS_EVENT, businessEvent);
         String bidId = getHexString(eventBox.getEventParse().getBidId());
         log.info("onEventTransferOut:" + bidId);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
@@ -563,6 +567,7 @@ public class LPController extends LpControllerBase {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         log.info("do transfer in  businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferIn commandTransferIn = new CommandTransferIn()
+                .setBid(bfd.getBusiness().getBusinessHash())
                 .setSenderWalletName(lpBridge.getWallet().getName())
                 .setUserReceiverAddress(bfd.getEventTransferOut().getDstAddress())
                 .setToken(bfd.getEventTransferOut().getDstToken())
@@ -800,6 +805,7 @@ public class LPController extends LpControllerBase {
     public void transferInConfirm(BusinessFullData bfd, LPBridge lpBridge) {
         log.info("do transfer in confirm businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferInConfirm commandTransferInConfirm = new CommandTransferInConfirm()
+                .setBid(bfd.getPreBusiness().getHash())
                 .setUuid(bfd.getEventTransferIn().getTransferId())
                 .setSenderWalletName(lpBridge.getWallet().getName())
                 .setUserReceiverAddress(bfd.getEventTransferOut().getDstAddress())

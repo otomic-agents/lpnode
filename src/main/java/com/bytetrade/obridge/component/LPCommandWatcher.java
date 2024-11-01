@@ -94,7 +94,7 @@ public class LPCommandWatcher {
                         }
                         index = index + 1;
                     }
-                    Thread.sleep(1000*60*5);
+                    Thread.sleep(1000 * 60 * 5);
                 }
             } catch (Exception runTimeErr) {
                 log.info(runTimeErr.toString());
@@ -154,9 +154,9 @@ public class LPCommandWatcher {
                         LPCommandWatcher.this.notify(message, lpController);
                         long endTime = System.nanoTime();
                         long elapsedTimeMs = (endTime - startTime) / 1_000_000;
-                        if (elapsedTimeMs>1000){
+                        if (elapsedTimeMs > 1000) {
                             log.info("Processing message in thread with ID: {}  , Time taken to execute notify: {} ms",
-                            currentThreadId, elapsedTimeMs);
+                                    currentThreadId, elapsedTimeMs);
                         }
                     });
                 }

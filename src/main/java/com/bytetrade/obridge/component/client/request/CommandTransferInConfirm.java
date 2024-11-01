@@ -13,6 +13,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CommandTransferInConfirm {
 
+    String bid;
+
     String uuid;
 
     String senderWalletName;
