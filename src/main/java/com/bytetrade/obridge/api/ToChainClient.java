@@ -43,7 +43,7 @@ public class ToChainClient {
             @RequestBody EventTransferRefundBox eventBox) {
 
         log.info("<- [EVENT] on_refund:{}", eventBox.toString());
-        lpController.onRefund(eventBox);
+        lpController.onEventRefund(eventBox);
         return new Result(200, "");
     }
 
@@ -51,7 +51,7 @@ public class ToChainClient {
     public Result onTransferIn(
             @RequestBody EventTransferInBox eventBox) {
         log.info("<- [EVENT] on_transfer_in:{}", eventBox.toString());
-        lpController.onTransferIn(eventBox);
+        lpController.onEventTransferIn(eventBox);
         return new Result(200, "");
     }
 

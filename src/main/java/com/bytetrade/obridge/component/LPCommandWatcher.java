@@ -186,23 +186,23 @@ public class LPCommandWatcher {
             cmdEvent = objectMapper.readValue(msg, CmdEvent.class);
             switch (cmdEvent.getCmd()) {
                 case CmdEvent.CMD_UPDATE_QUOTE:
-                    lpController.updateQuote(cmdEvent.getQuoteData(), lpBridge);
+                    lpController.updateQuoteToRelay(cmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.EVENT_ASK_REPLY:
-                    lpController.askReply(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
+                    lpController.askReplyToRelay(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.CALLBACK_LOCK_QUOTE:
                     lpController.newCallback(cmdEvent.getPreBusiness().getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE,
                             cmdEvent);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN:
-                    lpController.transferIn(cmdEvent.getBusinessFullData(), lpBridge);
+                    lpController.doTransferIn(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
-                    lpController.transferInConfirm(cmdEvent.getBusinessFullData(), lpBridge);
+                    lpController.doTransferInConfirm(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:
-                    lpController.transferInRefund(cmdEvent.getBusinessFullData(), lpBridge);
+                    lpController.doTransferInRefund(cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 default:
                     break;

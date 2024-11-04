@@ -39,7 +39,7 @@ public class ToRelay {
     public ResultLockQuote lockQuote(
             @RequestBody PreBusiness business) {
         long startTime = System.nanoTime();
-        PreBusiness resultBusiness = lpController.onLockQuote(business);
+        PreBusiness resultBusiness = lpController.onRelayLockQuote(business);
         ResultLockQuote result = new ResultLockQuote(200, "", resultBusiness);
         long endTime = System.nanoTime();
         long duration = endTime - startTime;
@@ -70,7 +70,7 @@ public class ToRelay {
         log.info("<- businessId:{}", bfd.getBusiness().getBusinessHash());
         Result result = new Result(32006, "Lp offline");
         try {
-            Boolean arrived = lpController.onTransferOut(bfd);
+            Boolean arrived = lpController.onRelayTransferOut(bfd);
             if (arrived) {
                 log.info("updateBusinessTransferOut info arrived");
                 result = new Result(200, "");
@@ -81,7 +81,7 @@ public class ToRelay {
         } catch (Exception e) {
             result = new Result(32006, "An error occurred during LP processing");
         } finally {
-           
+
         }
         return result;
     }
@@ -91,7 +91,7 @@ public class ToRelay {
             @PathVariable String lpnode_api_key,
             @RequestBody BusinessFullData bfd) {
         log.info("on updateBusinessTransferOutConfirm:" + bfd.toString());
-        lpController.onTransferOutConfirm(bfd);
+        lpController.onRelayTransferOutConfirm(bfd);
         return new Result(200, "");
     }
 
@@ -100,7 +100,7 @@ public class ToRelay {
             @PathVariable String lpnode_api_key,
             @RequestBody BusinessFullData bfd) {
         log.info("on updateBusinessTransferOutRefund:" + bfd.toString());
-        lpController.onTransferOutRefund(bfd);
+        lpController.onRelayTransferOutRefund(bfd);
         return new Result(200, "");
     }
 
@@ -108,7 +108,7 @@ public class ToRelay {
     public Result askQuote(
             @PathVariable String lpnode_api_key,
             @RequestBody AskCmd askCmd) {
-        lpController.askQuote(askCmd);
+        lpController.relayAskQuote(askCmd);
         return new Result(200, "");
     }
 

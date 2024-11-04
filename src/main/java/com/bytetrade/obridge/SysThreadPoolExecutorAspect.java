@@ -20,19 +20,7 @@ public class SysThreadPoolExecutorAspect {
             System.out.println("Shutting down ExecutorService");
             executorService.shutdown();
             try {
-                if (!executorService
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                
-                .awaitTermination(1, TimeUnit.SECONDS)) {
+                if (!executorService.awaitTermination(1, TimeUnit.SECONDS)) {
                     executorService.shutdownNow();
                 }
             } catch (InterruptedException e) {

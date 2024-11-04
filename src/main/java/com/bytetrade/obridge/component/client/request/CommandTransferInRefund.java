@@ -12,6 +12,9 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CommandTransferInRefund {
+
+    String bid;
+
     String uuid;
 
     String senderWalletName;
