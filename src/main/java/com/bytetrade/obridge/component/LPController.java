@@ -445,7 +445,7 @@ public class LPController extends LpControllerBase {
         for (String businessId : lockedBusinessList) {
             if (businessId.equalsIgnoreCase(bidId)) {
                 transferOutEventMap.put(businessId, true);
-                log.info("add transferOutId:" + eventBox.getEventParse().getTransferId());
+                log.info("add transferOutId to transferOutEventMap:" + eventBox.getEventParse().getTransferId());
                 System.out.println(gson.toJson(eventBox));
                 transferOutIdList.add(eventBox.getEventParse().getTransferId());
                 lockedBusinessList.remove(businessId);
@@ -482,11 +482,17 @@ public class LPController extends LpControllerBase {
                 long lastLogTime = System.currentTimeMillis(); // Record the time of the last log output
                 long logInterval = 10000; // Set log output interval to 10 seconds in milliseconds
                 Boolean doubleCheck = false;
-
-                while (!doubleCheck && (System.currentTimeMillis() - startTime) < maxTimeout) {
+                log.info("The transferOutEvent must be received within {} seconds ,businessHash: [{}] ", maxTimeout,
+                        bfd.getPreBusiness().getHash());
+                while (!doubleCheck) {
+                    if ((System.currentTimeMillis() - startTime) > (maxTimeout * 1000)) {
+                        throw new Exception(String.format("transferOutEvent Timeout businessHash: [%s]",
+                                bfd.getPreBusiness().getHash()));
+                    }
                     Boolean hit = transferOutEventMap.get(getHexString(bfd.getEventTransferOut().getBidId()));
                     doubleCheck = hit != null && hit == true;
                     // Check if logging is required based on the specified interval
+                    log.info("waiting transferOutEventMap....bid:{}", bfd.getEventTransferOut().getBidId());
                     if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
                         log.info(String.format("Still waiting for the condition to be satisfied,bid:%s",
                                 getHexString(bfd.getEventTransferOut().getBidId())));
@@ -498,7 +504,8 @@ public class LPController extends LpControllerBase {
                         log.error("error", e);
                     }
                 }
-
+                log.info("The transferOutEventMap is ready");
+                log.info("Send Transaction out Event to Amm");
                 redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                         cmdEvent);
                 return true;
