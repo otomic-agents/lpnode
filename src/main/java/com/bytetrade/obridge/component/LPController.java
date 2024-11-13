@@ -119,16 +119,26 @@ public class LPController extends LpControllerBase {
         }
     }
 
+    public String printBridgeList() {
+        try {
+            String jsonOutput = objectMapper.writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(lpBridgesChannelMap);
+            return jsonOutput;
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     private LPBridge getBridge(String bridgeName, String relayApiKey) {
         if (relayApiKey == null) {
-            log.info("🟥 = {}", relayApiKey);
+            log.info("🔑 Invalid API Key: null");
             return null;
         }
         if (relayApiKey.length() <= 3) {
-            log.info("🟥 = {}", relayApiKey);
+            log.info("⚠️ API Key too short: {}", relayApiKey);
             return null;
         }
-        log.info("🟩= {}", relayApiKey);
+        log.info("✅ Valid API Key: {}", relayApiKey);
         String[] parts = bridgeName.split("_");
         String key = parts[2] + "/" + parts[3] + "_" + parts[0] + "_" + parts[1];
         LPBridge lpBridge = lpBridgesChannelMap.get(key + "_" + relayApiKey);
@@ -741,14 +751,23 @@ public class LPController extends LpControllerBase {
                     bfd.getEventTransferIn().getTransferId(), objectMapper.writeValueAsString(bfd));
 
             Boolean doubleCheck = false;
+            // Record start time
+            long startTime = System.currentTimeMillis();
+            // Set timeout to 5 minutes (in milliseconds)
+            long timeout = 300000;
             while (!doubleCheck) {
+                // Check if timeout exceeded
+                if (System.currentTimeMillis() - startTime > timeout) {
+                    log.info("⏰ Timeout exceeded while waiting for transfer out confirmation.");
+                    break;
+                }
                 Boolean hit = transferOutConfirmEventMap.get(bfd.getEventTransferOutConfirm().getTransferId());
                 doubleCheck = hit != null && hit == true;
                 try {
-                    log.info("Waiting for transfer out confirm map bid:{}", bfdFromRelay.getPreBusiness().getHash());
+                    log.info("⌛ Waiting for transfer out confirm map bid:{}", bfdFromRelay.getPreBusiness().getHash());
                     Thread.sleep(500);
                 } catch (Exception e) {
-                    log.error("error", e);
+                    log.error("❌ error", e);
                 }
             }
             log.info("📤 send TxOutConfirm EVENT, channel: {},",
