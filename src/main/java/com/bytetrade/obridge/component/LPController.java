@@ -744,14 +744,16 @@ public class LPController extends LpControllerBase {
             while (!doubleCheck) {
                 Boolean hit = transferOutConfirmEventMap.get(bfd.getEventTransferOutConfirm().getTransferId());
                 doubleCheck = hit != null && hit == true;
-
                 try {
+                    log.info("Waiting for transfer out confirm map bid:{}", bfdFromRelay.getPreBusiness().getHash());
                     Thread.sleep(500);
                 } catch (Exception e) {
                     log.error("error", e);
                 }
             }
-
+            log.info("📤 send TxOutConfirm EVENT, channel: {},",
+                    lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey());
+            log.info("🔗 businessHash: {}", bfdFromRelay.getPreBusiness().getHash());
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);
         } catch (Exception e) {
