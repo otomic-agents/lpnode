@@ -13,6 +13,7 @@ import com.bytetrade.obridge.bean.EventTransferRefundBox;
 import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.component.LPController;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.bind.annotation.GetMapping;
 
 @Slf4j
 @RestController
@@ -21,6 +22,12 @@ public class ToChainClient {
 
     @Autowired
     LPController lpController;
+
+    @GetMapping("hash_code")
+    public String checkInstance() {
+        log.info("hashCode:{}", lpController.hashCode());
+        return "LPController instance hashCode: " + lpController.hashCode();
+    }
 
     @PostMapping("on_transfer_out")
     public Result onTransferOut(

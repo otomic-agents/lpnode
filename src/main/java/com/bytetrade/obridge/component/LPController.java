@@ -1,9 +1,11 @@
 package com.bytetrade.obridge.component;
 
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.math.BigInteger;
 import com.google.gson.Gson;
@@ -89,19 +91,19 @@ public class LPController extends LpControllerBase {
     @Value("${lpnode.uri}")
     private String selfUri;
 
-    Map<String, LPBridge> lpBridges = new HashMap<String, LPBridge>();
+    Map<String, LPBridge> lpBridges = new ConcurrentHashMap<String, LPBridge>();
 
-    Map<String, LPBridge> lpBridgesChannelMap = new HashMap<String, LPBridge>();
+    Map<String, LPBridge> lpBridgesChannelMap = new ConcurrentHashMap<String, LPBridge>();
 
-    Map<String, CmdEvent> callbackEventMap = new HashMap<String, CmdEvent>();
+    Map<String, CmdEvent> callbackEventMap = new ConcurrentHashMap<String, CmdEvent>();
 
-    Map<String, Boolean> transferOutEventMap = new HashMap<String, Boolean>();
+    Map<String, Boolean> transferOutEventMap = new ConcurrentHashMap<String, Boolean>();
 
-    Map<String, Boolean> transferOutConfirmEventMap = new HashMap<String, Boolean>();
+    Map<String, Boolean> transferOutConfirmEventMap = new ConcurrentHashMap<String, Boolean>();
 
-    List<String> lockedBusinessList = new ArrayList<String>();
+    List<String> lockedBusinessList = new CopyOnWriteArrayList<String>(); // new ArrayList<String>();
 
-    List<String> transferOutIdList = new ArrayList<String>();
+    List<String> transferOutIdList = new CopyOnWriteArrayList<String>(); // new ArrayList<String>();
 
     @PostConstruct
     public void init() {
@@ -449,11 +451,12 @@ public class LPController extends LpControllerBase {
                 .setBusinessEvent(BusinessEventItem.LP_EVENT_CHAIN_CLIENT_TRANSFER_OUT.getValue())
                 .setSystem("LP_NODE");
         redisConfig.getRedisTemplate().convertAndSend(KEY_BUSINESS_EVENT, businessEvent);
-        String bidId = getHexString(eventBox.getEventParse().getBidId());
-        log.info("onEventTransferOut:" + bidId);
+        String eventBusinessId = getHexString(eventBox.getEventParse().getBidId());
+        log.info("onEventTransferOut:" + eventBusinessId);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
         for (String businessId : lockedBusinessList) {
-            if (businessId.equalsIgnoreCase(bidId)) {
+            log.info("Compare lockedBusinessId:{} eventBusinessId:{}", businessId, eventBusinessId);
+            if (businessId.equalsIgnoreCase(eventBusinessId)) {
                 transferOutEventMap.put(businessId, true);
                 log.info("add transferOutId to transferOutEventMap:" + eventBox.getEventParse().getTransferId());
                 System.out.println(gson.toJson(eventBox));
@@ -723,7 +726,7 @@ public class LPController extends LpControllerBase {
         for (String tId : transferOutIdList) {
             if (tId.equalsIgnoreCase(transferId)) {
                 transferOutConfirmEventMap.put(transferId, true);
-
+                log.info("✅ Confirm and push to transferOutConfirmEventMap {}", transferId);
                 transferOutIdList.remove(transferId);
                 break;
             }
@@ -764,7 +767,8 @@ public class LPController extends LpControllerBase {
                 Boolean hit = transferOutConfirmEventMap.get(bfd.getEventTransferOutConfirm().getTransferId());
                 doubleCheck = hit != null && hit == true;
                 try {
-                    log.info("⌛ Waiting for transfer out confirm map bid:{}", bfdFromRelay.getPreBusiness().getHash());
+                    log.info("⌛ Waiting for transfer out confirm map bid:{} , OutTransferId:{}",
+                            bfdFromRelay.getPreBusiness().getHash(), bfd.getEventTransferOutConfirm().getTransferId());
                     Thread.sleep(500);
                 } catch (Exception e) {
                     log.error("❌ error", e);
@@ -784,7 +788,7 @@ public class LPController extends LpControllerBase {
     }
 
     public void doTransferInConfirm(BusinessFullData bfd, LPBridge lpBridge) {
-        log.info("do transfer in confirm businessHash: [{}]", bfd.getPreBusiness().getHash());
+        log.info("🔄 do transfer in confirm businessHash: [{}]", bfd.getPreBusiness().getHash());
         CommandTransferInConfirm commandTransferInConfirm = new CommandTransferInConfirm()
                 .setBid(bfd.getPreBusiness().getHash())
                 .setUuid(bfd.getEventTransferIn().getTransferId())
@@ -850,9 +854,10 @@ public class LPController extends LpControllerBase {
             // Divert TransferOutConfirm and TransferInConfirm
             // TransferOutConfirm
             if (!eventBox.getEventParse().getTransferId().equalsIgnoreCase(bfd.getEventTransferIn().getTransferId())) {
-                log.info("not hit Transfer in");
-                log.info("bfd id:" + bfd.getEventTransferIn().getTransferId());
-                log.info("event id:" + eventBox.getEventParse().getTransferId());
+                log.info("not hit Transfer in ,is outConfirm");
+                log.info("TransferIn TransferId:" + bfd.getEventTransferIn().getTransferId());
+                log.info("Event id:" + eventBox.getEventParse().getTransferId());
+                log.info("Business Id:{}", bfd.getPreBusiness().getHash());
                 log.info("EventTransferConfirmBox:" + eventBox.toString());
                 log.info("BusinessFullData:" + bfd.toString());
                 onEventConfirm(eventBox);
