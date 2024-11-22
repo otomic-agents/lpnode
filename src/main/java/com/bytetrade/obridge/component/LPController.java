@@ -322,7 +322,9 @@ public class LPController extends LpControllerBase {
         CmdEvent cmdEvent = new CmdEvent().setPreBusiness(preBusiness).setCmd(CmdEvent.EVENT_LOCK_QUOTE);
         // send Event to Amm application
         try {
-            redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+            String channel = lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey();
+            log.info("send LOCK message To {}", channel);
+            redisConfig.getRedisTemplate().convertAndSend(channel,
                     cmdEvent);
         } catch (Exception e) {
             log.error("error", e);
