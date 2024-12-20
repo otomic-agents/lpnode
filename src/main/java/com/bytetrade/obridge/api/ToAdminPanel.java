@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.bean.LPBridge;
-import com.bytetrade.obridge.component.LPController;
+import com.bytetrade.obridge.component.CommLpController;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
 @Slf4j
 @RestController
@@ -22,13 +22,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class ToAdminPanel {
 
     @Autowired
-    LPController lpController;
+    CommLpController commLpController;
 
     @PostMapping("config_lp")
     public Result configLP(
             @RequestBody List<LPBridge> bridges) {
         log.info("bridges:" + bridges.toString());
-        boolean isSucceed = lpController.updateConfig(bridges);
+        boolean isSucceed = commLpController.updateConfig(bridges);
         if (isSucceed) {
             return new Result(200, "config succeed");
         } else {
@@ -38,7 +38,7 @@ public class ToAdminPanel {
 
     @GetMapping("list_bridge")
     public ResponseEntity<String> listBridge() {
-        String bridgeInfoStr = lpController.printBridgeList();
+        String bridgeInfoStr = commLpController.printBridgeList();
         return ResponseEntity.ok(bridgeInfoStr);
     }
 }

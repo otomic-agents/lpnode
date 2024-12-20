@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.api;
+package com.bytetrade.obridge.api.Atomic;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -11,17 +11,17 @@ import com.bytetrade.obridge.bean.EventTransferInBox;
 import com.bytetrade.obridge.bean.EventTransferConfirmBox;
 import com.bytetrade.obridge.bean.EventTransferRefundBox;
 import com.bytetrade.obridge.base.Result;
-import com.bytetrade.obridge.component.LPController;
+import com.bytetrade.obridge.component.AtomicLPController;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Slf4j
 @RestController
 @RequestMapping("/lpnode/chain_client/")
-public class ToChainClient {
+public class AtomicChainClient {
 
     @Autowired
-    LPController lpController;
+    AtomicLPController lpController;
 
     @GetMapping("hash_code")
     public String checkInstance() {

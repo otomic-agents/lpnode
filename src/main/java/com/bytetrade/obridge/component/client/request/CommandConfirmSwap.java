@@ -4,43 +4,30 @@ import lombok.*;
 import lombok.experimental.Accessors;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class SignData {
+public class CommandConfirmSwap {
+    String bid;
 
-    Integer srcChainId;
+    String sender;
 
-    String srcAddress;
+    String senderWalletName;
 
-    String srcToken;
+    String userReceiverAddress;
 
-    String srcAmount;
+    String token;
 
-    Integer dstChainId;
-
-    String dstAddress;
+    String tokenAmount;
 
     String dstToken;
 
     String dstAmount;
 
-    String dstNativeAmount;
-
-    String requestor;
-
-    String lpId;
-
     Long agreementReachedTime;
 
     Long expectedSingleStepTime;
-
-    Long tolerantSingleStepTime;
-
-    Long earliestRefundTime;
-
 }

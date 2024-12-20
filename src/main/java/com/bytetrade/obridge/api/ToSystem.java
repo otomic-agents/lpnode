@@ -5,7 +5,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import com.bytetrade.obridge.base.Result;
-import com.bytetrade.obridge.component.LPController;
+import com.bytetrade.obridge.component.AtomicLPController;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -14,7 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 public class ToSystem {
 
     @Autowired
-    LPController lpController;
+    AtomicLPController lpController;
 
     @GetMapping(value = "up_status", produces = "application/json;charset=UTF-8")
     public Result upStatus() {

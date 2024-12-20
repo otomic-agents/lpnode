@@ -6,25 +6,24 @@ import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-@Data
+@Getter
+@Setter
 @Accessors(chain = true)
-@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
-public class BusinessFullData {
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+public class BusinessFullData<T extends BusinessFullData<T>> {
 
     PreBusiness preBusiness;
 
     Business business;
 
-    EventTransferOut eventTransferOut;
+    public T setPreBusiness(PreBusiness preBusiness) {
+        this.preBusiness = preBusiness;
+        return (T) this;
+    }
 
-    EventTransferIn eventTransferIn;
-
-    EventTransferOutConfirm eventTransferOutConfirm;
-
-    EventTransferInConfirm eventTransferInConfirm;
-
-    EventTransferOutRefund eventTransferOutRefund;
-
-    EventTransferInRefund eventTransferInRefund;
+    public T setBusiness(Business business) {
+        this.business = business;
+        return (T) this;
+    }
 }

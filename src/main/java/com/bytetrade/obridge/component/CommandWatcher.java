@@ -21,13 +21,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import com.bytetrade.obridge.bean.LPBridge;
+import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import java.util.Collection;
 
 @Slf4j
 @Service
-public class LPCommandWatcher {
+public class CommandWatcher {
 
     List<RedisConnection> connections = new ArrayList<RedisConnection>();
 
@@ -41,7 +42,12 @@ public class LPCommandWatcher {
     @Autowired
     private ExecutorService exePoolService;
     private byte[][] listenChannels;
-    private LPController lpController;
+    @Autowired
+    private AtomicLPController atomicLPController;
+    @Autowired
+    private CommLpController commLpController;
+    @Autowired
+    private SingleSwapLpController singleSwapLpController;
 
     public void exitWatch() {
         log.info("Close the existing redis connection.");
@@ -104,14 +110,14 @@ public class LPCommandWatcher {
         exePoolService.submit(printKeysTask);
     }
 
-    public void updateWatch(byte[][] channels, LPController lpController) {
+    public void updateWatch(byte[][] channels) {
         this.listenChannels = channels;
-        this.lpController = lpController;
+
         this.exitWatch();
     }
 
     @Async
-    public void watchCmds(LPController lpController) {
+    public void watchCmds() {
         int retries = 1;
         long threadId = Thread.currentThread().getId();
         for (;;) {
@@ -124,7 +130,7 @@ public class LPCommandWatcher {
                 connections.add(rc);
                 log.info("channels:" + this.listenChannels.length);
                 if (this.listenChannels.length > 0) {
-                    boolean watchResult = doWatch(rc, lpController);
+                    boolean watchResult = doWatch(rc);
                     if (watchResult) {
                         log.info("exit threadId:" + threadId);
                     }
@@ -143,7 +149,7 @@ public class LPCommandWatcher {
         }
     }
 
-    public boolean doWatch(RedisConnection rc, LPController lpController) {
+    public boolean doWatch(RedisConnection rc) {
         try {
             rc.subscribe(new MessageListener() {
                 @Override
@@ -151,7 +157,7 @@ public class LPCommandWatcher {
                     exePoolService.submit(() -> {
                         long currentThreadId = Thread.currentThread().getId();
                         long startTime = System.nanoTime();
-                        LPCommandWatcher.this.notify(message, lpController);
+                        CommandWatcher.this.notify(message);
                         long endTime = System.nanoTime();
                         long elapsedTimeMs = (endTime - startTime) / 1_000_000;
                         if (elapsedTimeMs > 1000) {
@@ -171,11 +177,11 @@ public class LPCommandWatcher {
     }
 
     @Async
-    private void notify(Message message, LPController lpController) {
+    private void notify(Message message) {
         String msg = new String(message.getBody());
         String channel = new String(message.getChannel());
         CmdEvent cmdEvent;
-        LPBridge lpBridge = lpController.getBridgeFromChannel(channel);
+        LPBridge lpBridge = atomicLPController.getBridgeFromChannel(channel);
         if ("SYSTEM_PING_CHANNEL".equals(channel)) {
             return;
         }
@@ -186,23 +192,26 @@ public class LPCommandWatcher {
             cmdEvent = objectMapper.readValue(msg, CmdEvent.class);
             switch (cmdEvent.getCmd()) {
                 case CmdEvent.CMD_UPDATE_QUOTE:
-                    lpController.updateQuoteToRelay(cmdEvent.getQuoteData(), lpBridge);
+                    commLpController.updateQuoteToRelay(cmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.EVENT_ASK_REPLY:
-                    lpController.askReplyToRelay(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
+                    commLpController.askReplyToRelay(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.CALLBACK_LOCK_QUOTE:
-                    lpController.newCallback(cmdEvent.getPreBusiness().getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE,
+                    commLpController.newQuoteCallback(
+                            cmdEvent.getPreBusiness().getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE,
                             cmdEvent);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN:
-                    lpController.doTransferIn(cmdEvent.getBusinessFullData(), lpBridge);
+                    atomicLPController.doTransferIn((AtomicBusinessFullData) cmdEvent.getBusinessFullData(), lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
-                    lpController.doTransferInConfirm(cmdEvent.getBusinessFullData(), lpBridge);
+                    atomicLPController.doTransferInConfirm((AtomicBusinessFullData) cmdEvent.getBusinessFullData(),
+                            lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:
-                    lpController.doTransferInRefund(cmdEvent.getBusinessFullData(), lpBridge);
+                    atomicLPController.doTransferInRefund((AtomicBusinessFullData) cmdEvent.getBusinessFullData(),
+                            lpBridge);
                     break;
                 default:
                     break;

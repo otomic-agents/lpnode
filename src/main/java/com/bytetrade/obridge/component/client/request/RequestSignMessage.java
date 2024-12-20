@@ -8,5 +8,5 @@ import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 public interface RequestSignMessage {
     RequestSignMessage setWalletName(String walletName);
 
-    RequestSignMessage setSignData(SignData signData);
+    RequestSignMessage setSignData(AtomicSignData signData);
 }

@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.api.relay;
+package com.bytetrade.obridge.api.common;
 
 import com.bytetrade.obridge.base.Result;
 

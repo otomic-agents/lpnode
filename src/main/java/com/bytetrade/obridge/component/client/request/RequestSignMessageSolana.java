@@ -14,5 +14,5 @@ public class RequestSignMessageSolana implements RequestSignMessage {
 
     String walletName;
 
-    SignData signData;
+    AtomicSignData signData;
 }

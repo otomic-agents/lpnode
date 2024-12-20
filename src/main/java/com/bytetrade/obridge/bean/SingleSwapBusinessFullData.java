@@ -1,19 +1,15 @@
-package com.bytetrade.obridge.component.client.request;
+package com.bytetrade.obridge.bean;
 
 import lombok.*;
 import lombok.experimental.Accessors;
 
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
-@Accessors(chain = true)
 @NoArgsConstructor
+@Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class RequestSignMessage712 implements RequestSignMessage {
-
-    String walletName;
-
-    AtomicSignData signData;
+public class SingleSwapBusinessFullData extends BusinessFullData<SingleSwapBusinessFullData> {
+    private EventInitSwap eventInitSwap;
 }
