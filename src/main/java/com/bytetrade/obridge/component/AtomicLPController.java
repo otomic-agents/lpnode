@@ -48,7 +48,6 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class AtomicLPController extends LpControllerBase {
 
-
     @Autowired
     private ExecutorService exePoolService;
 
@@ -63,9 +62,6 @@ public class AtomicLPController extends LpControllerBase {
 
     @Autowired
     RestTemplate restTemplate;
-
-    @Autowired
-    CommandWatcher cmdWatcher;
 
     @Autowired
     AtomicRestClient atomicRestClient;
@@ -111,8 +107,6 @@ public class AtomicLPController extends LpControllerBase {
             log.error("error", e);
         }
     }
-
-
 
     public Boolean onEventTransferOut(EventTransferOutBox eventBox) {
         BusinessEvent businessEvent = new BusinessEvent()

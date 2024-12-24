@@ -27,6 +27,7 @@ import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 import com.bytetrade.obridge.bean.RealtimeQuote;
 import com.bytetrade.obridge.component.client.request.AbstractSignMessage;
 import com.bytetrade.obridge.component.client.request.SignMessageFactory;
+import com.bytetrade.obridge.component.service.CommandWatcher;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 

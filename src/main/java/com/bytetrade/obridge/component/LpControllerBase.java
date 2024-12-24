@@ -6,9 +6,9 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.bytetrade.obridge.bean.ExtendedAtomicSwapAsset;
-import com.bytetrade.obridge.bean.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.PreBusiness;
+import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.component.service.LPBridgeService;
 
 import lombok.extern.slf4j.Slf4j;

@@ -10,17 +10,18 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.bytetrade.obridge.bean.EventInitSwapBox;
-import com.bytetrade.obridge.bean.ExtendedSingleSwapAsset;
+import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.LPBridge;
-import com.bytetrade.obridge.bean.SingleSwapBusinessFullData;
+import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwapBox;
+import com.bytetrade.obridge.bean.SingleSwap.EventInitSwapBox;
+import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
+import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.client.request.CommandConfirmSwap;
 import com.bytetrade.obridge.component.client.request.Gas;
 import com.bytetrade.obridge.component.client.request.RequestDoConfirmSwap;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import lombok.extern.slf4j.Slf4j;
@@ -42,7 +43,11 @@ public class SingleSwapLpController extends LpControllerBase {
     @Resource
     RedisConfig redisConfig;
 
-    Map<String, Boolean> initSwapEventMap = new ConcurrentHashMap<String, Boolean>();
+    @Autowired
+    SingleSwapRestClient singleSwapRestClient;
+
+    @Autowired
+    private Map<String, Boolean> initSwapEventMap;
 
     public Boolean onRelayInitSwap(SingleSwapBusinessFullData bfd) {
         exePoolService.submit(() -> {
@@ -55,6 +60,8 @@ public class SingleSwapLpController extends LpControllerBase {
                 // Serialize and store business data to Redis cache 💾
                 redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
                         bfd.getEventInitSwap().getTransferId(), objectMapper.writeValueAsString(bfd));
+
+                log.info("save KEY_BUSINESS_CACHE transferId:{}", bfd.getEventInitSwap().getTransferId());
 
                 // Record the start time ⏱️
                 long startTime = System.currentTimeMillis();
@@ -194,5 +201,67 @@ public class SingleSwapLpController extends LpControllerBase {
 
         }
         return true;
+    }
+
+    public void onEventConfirmSwap(EventConfirmSwapBox eventBox) {
+        try {
+            log.info("🚀 Start processing event with transferId: {}", eventBox.getEventParse().getTransferId());
+
+            // fetch business from redis
+            String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(
+                    KEY_BUSINESS_CACHE,
+                    eventBox.getEventParse().getTransferId());
+
+            // Check if cache data exists
+            if (cacheData == null) {
+                log.warn("⚠️ Business cache not found - Key: {}, TransferId: {}",
+                        KEY_BUSINESS_CACHE,
+                        eventBox.getEventParse().getTransferId());
+                return;
+            }
+
+            log.info("📝 Successfully retrieved cache data for transferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+            // Parse business data
+            SingleSwapBusinessFullData bfd = objectMapper.readValue(cacheData, SingleSwapBusinessFullData.class);
+            log.info("✅ Business data parsed successfully - BridgeName: {}, RelayApiKey: {}",
+                    bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
+
+            // Get bridge instance
+            String bridgeName = bfd.getPreBusiness().getSwapAssetInformation().getBridgeName();
+            String relayApiKey = bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase()
+                    .getRelayApiKey();
+            LPBridge lpBridge = getBridge(bridgeName, relayApiKey);
+            log.info("🌉 Bridge instance created for bridge: {}", bridgeName);
+
+            bfd.setEventConfirmSwap(eventBox.getEventParse());
+        
+            String updatedData = objectMapper.writeValueAsString(bfd);
+            redisConfig.getRedisTemplate().opsForHash().put(
+                    KEY_BUSINESS_CACHE,
+                    eventBox.getEventParse().getTransferId(),
+                    updatedData);
+            log.info("💾 Updated business data saved back to Redis - TransferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+            // Notify confirm swap
+            log.info("📤 Sending confirm swap notification to LP Bridge...");
+            singleSwapRestClient.NotifyConfirmSwap(lpBridge, bfd);
+            log.info("🎉 Successfully sent confirm swap notification for transferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+        } catch (JsonProcessingException e) {
+            log.error("❌ Failed to parse business data - TransferId: {} - Error: {}",
+                    eventBox.getEventParse().getTransferId(),
+                    e.getMessage(),
+                    e);
+        } catch (Exception e) {
+            log.error("💥 Unexpected error while processing event - TransferId: {} - Error: {}",
+                    eventBox.getEventParse().getTransferId(),
+                    e.getMessage(),
+                    e);
+        }
     }
 }

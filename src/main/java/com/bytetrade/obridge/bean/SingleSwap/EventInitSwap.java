@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.bean;
+package com.bytetrade.obridge.bean.SingleSwap;
 
 import lombok.*;
 import lombok.experimental.Accessors;

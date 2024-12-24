@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.service;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -9,6 +9,7 @@ import javax.annotation.PostConstruct;
 import javax.annotation.Resource;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.data.redis.connection.Message;
 import org.springframework.data.redis.connection.MessageListener;
@@ -21,6 +22,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import com.bytetrade.obridge.bean.LPBridge;
+import com.bytetrade.obridge.component.AtomicLPController;
+import com.bytetrade.obridge.component.CommLpController;
+import com.bytetrade.obridge.component.SingleSwapLpController;
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
@@ -42,10 +46,13 @@ public class CommandWatcher {
     @Autowired
     private ExecutorService exePoolService;
     private byte[][] listenChannels;
+    @Lazy
     @Autowired
     private AtomicLPController atomicLPController;
+    @Lazy
     @Autowired
     private CommLpController commLpController;
+    @Lazy
     @Autowired
     private SingleSwapLpController singleSwapLpController;
 

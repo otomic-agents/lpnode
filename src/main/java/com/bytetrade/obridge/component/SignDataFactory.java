@@ -1,9 +1,9 @@
 package com.bytetrade.obridge.component;
 
 import com.bytetrade.obridge.bean.ExtendedAtomicSwapAsset;
-import com.bytetrade.obridge.bean.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.PreBusiness;
+import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.component.client.request.AtomicSignData;
 import com.bytetrade.obridge.component.client.request.SingleSignData;
 
