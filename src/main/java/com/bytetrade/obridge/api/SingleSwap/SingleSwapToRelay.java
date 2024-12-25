@@ -15,7 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RestController
 @RequestMapping("/lpnode/relay/single_swap/")
-public class SingleSwapRelay {
+public class SingleSwapToRelay {
 
     @Autowired
     SingleSwapLpController singleSwapController;

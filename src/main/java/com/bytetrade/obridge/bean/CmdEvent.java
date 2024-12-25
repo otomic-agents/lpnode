@@ -12,7 +12,7 @@ import com.bytetrade.obridge.bean.PreBusiness;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
-public class CmdEvent {
+public class CmdEvent<T> {
 
     public static final String CMD_UPDATE_QUOTE = "CMD_UPDATE_QUOTE";
     public static final String EVENT_QUOTE_REMOVER = "EVENT_QUOTE_REMOVER";
@@ -46,7 +46,7 @@ public class CmdEvent {
 
     PreBusiness preBusiness;
 
-    BusinessFullData businessFullData;
+    T businessFullData;
 
     String cid;
 

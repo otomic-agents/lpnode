@@ -112,7 +112,8 @@ public class SingleSwapLpController extends LpControllerBase {
                 log.info("✅ The transferOutEventMap is ready");
                 log.info("✅ ✅  ✅ ✅ ConfirmInitSwap");
                 exePoolService.submit(() -> {
-                    doConfirmSwap(bfd, lpBridge);
+                    log.info("Temporarily no-op");
+                    // doConfirmSwap(bfd, lpBridge);
                 });
                 return true;
             } catch (Exception e) {
@@ -237,7 +238,7 @@ public class SingleSwapLpController extends LpControllerBase {
             log.info("🌉 Bridge instance created for bridge: {}", bridgeName);
 
             bfd.setEventConfirmSwap(eventBox.getEventParse());
-        
+
             String updatedData = objectMapper.writeValueAsString(bfd);
             redisConfig.getRedisTemplate().opsForHash().put(
                     KEY_BUSINESS_CACHE,

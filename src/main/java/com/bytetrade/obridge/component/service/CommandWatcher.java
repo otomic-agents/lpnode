@@ -18,8 +18,10 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.Subscription;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 
 import lombok.extern.slf4j.Slf4j;
+import com.fasterxml.jackson.core.type.TypeReference;
 
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.component.AtomicLPController;
@@ -187,7 +189,7 @@ public class CommandWatcher {
     private void notify(Message message) {
         String msg = new String(message.getBody());
         String channel = new String(message.getChannel());
-        CmdEvent cmdEvent;
+        // CmdEvent cmdEvent;
         LPBridge lpBridge = atomicLPController.getBridgeFromChannel(channel);
         if ("SYSTEM_PING_CHANNEL".equals(channel)) {
             return;
@@ -196,10 +198,14 @@ public class CommandWatcher {
             log.info("<-Message:" + msg);
             log.info("<-channel:" + channel);
             log.info("<-lpBridge:{} ,relayApiKey:{}", lpBridge.getMsmqName(), lpBridge.getRelayApiKey());
-            cmdEvent = objectMapper.readValue(msg, CmdEvent.class);
+            CmdEvent<?> cmdEvent = objectMapper.readValue(msg, new TypeReference<CmdEvent<?>>() {
+            });
             switch (cmdEvent.getCmd()) {
                 case CmdEvent.CMD_UPDATE_QUOTE:
-                    commLpController.updateQuoteToRelay(cmdEvent.getQuoteData(), lpBridge);
+                    CmdEvent<AtomicBusinessFullData> atomicCmdEvent = objectMapper.readValue(msg,
+                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
+                            });
+                    commLpController.updateQuoteToRelay(atomicCmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.EVENT_ASK_REPLY:
                     commLpController.askReplyToRelay(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
@@ -210,14 +216,27 @@ public class CommandWatcher {
                             cmdEvent);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN:
-                    atomicLPController.doTransferIn((AtomicBusinessFullData) cmdEvent.getBusinessFullData(), lpBridge);
+                    CmdEvent<AtomicBusinessFullData> atomicTransferInCmdEvent = objectMapper.readValue(msg,
+                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
+                            });
+                    atomicLPController.doTransferIn(
+                            (AtomicBusinessFullData) atomicTransferInCmdEvent.getBusinessFullData(),
+                            lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
-                    atomicLPController.doTransferInConfirm((AtomicBusinessFullData) cmdEvent.getBusinessFullData(),
+                    CmdEvent<AtomicBusinessFullData> atomicTransferInConfirmCmdEvent = objectMapper.readValue(msg,
+                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
+                            });
+                    atomicLPController.doTransferInConfirm(
+                            (AtomicBusinessFullData) atomicTransferInConfirmCmdEvent.getBusinessFullData(),
                             lpBridge);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:
-                    atomicLPController.doTransferInRefund((AtomicBusinessFullData) cmdEvent.getBusinessFullData(),
+                    CmdEvent<AtomicBusinessFullData> atomicTransferInRefundCmdEvent = objectMapper.readValue(msg,
+                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
+                            });
+                    atomicLPController.doTransferInRefund(
+                            (AtomicBusinessFullData) atomicTransferInRefundCmdEvent.getBusinessFullData(),
                             lpBridge);
                     break;
                 default:

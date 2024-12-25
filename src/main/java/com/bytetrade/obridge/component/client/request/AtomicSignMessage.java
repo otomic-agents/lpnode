@@ -9,6 +9,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import com.bytetrade.obridge.component.client.response.ResponseSignMessage;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
@@ -31,9 +34,12 @@ public class AtomicSignMessage extends AbstractSignMessage {
         try {
             String uri = baseUri + getSignMessageSubPath(chainId);
 
-            // 打印请求数据
-            log.info("Signature data:\n{}", gson.toJson(this));
             log.info("Request signature URL: {}", uri);
+
+            ObjectMapper mapper = new ObjectMapper()
+                    .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
+                    .enable(SerializationFeature.INDENT_OUTPUT);
+            log.info("Serialized JSON:\n{}", mapper.writeValueAsString(this));
 
             long signStartTime = System.nanoTime();
 
