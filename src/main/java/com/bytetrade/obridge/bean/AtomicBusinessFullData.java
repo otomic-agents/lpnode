@@ -6,12 +6,13 @@ import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
+@AllArgsConstructor
 @Accessors(chain = true)
 @EqualsAndHashCode(callSuper = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@Builder(toBuilder = true)
 public class AtomicBusinessFullData extends BusinessFullData<AtomicBusinessFullData> {
     private EventTransferOut eventTransferOut;
     private EventTransferIn eventTransferIn;

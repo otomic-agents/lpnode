@@ -11,5 +11,6 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
 public class EventConfirmSwap {
+    String transferInfo;
     String transferId;
 }

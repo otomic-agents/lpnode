@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@AllArgsConstructor
 public class BusinessFullData<T extends BusinessFullData<T>> {
 
     PreBusiness preBusiness;
@@ -26,4 +27,6 @@ public class BusinessFullData<T extends BusinessFullData<T>> {
         this.business = business;
         return (T) this;
     }
+
+
 }

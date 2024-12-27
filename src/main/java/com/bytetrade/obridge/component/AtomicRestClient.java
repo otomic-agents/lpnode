@@ -8,6 +8,9 @@ import org.springframework.web.client.RestTemplate;
 
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.LPBridge;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -38,11 +41,25 @@ public class AtomicRestClient {
 	@Retryable(value = {
 			Exception.class }, maxAttempts = 10, backoff = @Backoff(delay = 1000, maxDelay = 6000, multiplier = 2))
 	public String doNotifyTransferIn(LPBridge lpBridge, AtomicBusinessFullData bfd) {
-		String uri = lpBridge.getRelayUri() + "/relay" + "/lpnode/" + lpBridge.getRelayApiKey()
-				+ "/on_transfer_in";
+		String uri = lpBridge.getRelayUri() + "/relay" + "/lpnode/" + lpBridge.getRelayApiKey() + "/on_transfer_in";
 		log.info("request: " + uri);
-		return restTemplate.postForObject(
-				uri,
-				bfd, String.class);
+
+		try {
+			ObjectMapper objectMapper = new ObjectMapper();
+			String jsonString = objectMapper.writeValueAsString(bfd);
+			System.out.println("Serialized JSON:");
+			System.out.println(jsonString);
+
+			AtomicBusinessFullData copiedData = objectMapper.readValue(jsonString, AtomicBusinessFullData.class);
+			copiedData.getEventTransferIn().setHashLock("");
+			copiedData.getEventTransferOut().setHashLock("");
+			ObjectMapper objectMapperLog = new ObjectMapper();
+			objectMapperLog.enable(SerializationFeature.INDENT_OUTPUT);
+			String formattedJson = objectMapperLog.writeValueAsString(copiedData);
+			log.info("🍨 request body:\n{}", formattedJson);
+		} catch (Exception e) {
+			log.error("Failed to format object for logging", e);
+		}
+		return restTemplate.postForObject(uri, bfd, String.class);
 	}
 }

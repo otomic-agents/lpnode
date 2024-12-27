@@ -281,7 +281,6 @@ public class AtomicLPController extends LpControllerBase {
                         bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
                 eventBox.getEventParse().setSrcChainId(lpBridge.getBridge().getSrcChainId());
             }
-            bfd.getPreBusiness().setInTradeUuid(eventBox.getEventParse().getUuid());
             // update cache
             eventBox.getEventParse().setTransferInfo(eventBox.getTransferInfo());
             bfd.setEventTransferIn(eventBox.getEventParse());

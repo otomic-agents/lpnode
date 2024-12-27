@@ -12,6 +12,7 @@ import org.springframework.web.client.RestTemplate;
 
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.LPBridge;
+import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwap;
 import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.EventInitSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
@@ -113,7 +114,7 @@ public class SingleSwapLpController extends LpControllerBase {
                 log.info("✅ ✅  ✅ ✅ ConfirmInitSwap");
                 exePoolService.submit(() -> {
                     log.info("Temporarily no-op");
-                    // doConfirmSwap(bfd, lpBridge);
+                    doConfirmSwap(bfd, lpBridge);
                 });
                 return true;
             } catch (Exception e) {
@@ -206,6 +207,7 @@ public class SingleSwapLpController extends LpControllerBase {
 
     public void onEventConfirmSwap(EventConfirmSwapBox eventBox) {
         try {
+            log.info("EventConfirmSwapBox:{}", eventBox.toString());
             log.info("🚀 Start processing event with transferId: {}", eventBox.getEventParse().getTransferId());
 
             // fetch business from redis
@@ -235,9 +237,11 @@ public class SingleSwapLpController extends LpControllerBase {
             String relayApiKey = bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase()
                     .getRelayApiKey();
             LPBridge lpBridge = getBridge(bridgeName, relayApiKey);
-            log.info("🌉 Bridge instance created for bridge: {}", bridgeName);
+            log.info("🌉 Bron_transfer_inidge instance created for bridge: {}", bridgeName);
 
-            bfd.setEventConfirmSwap(eventBox.getEventParse());
+            EventConfirmSwap eventConfirmSwap = eventBox.getEventParse();
+            eventConfirmSwap.setTransferInfo(eventBox.getTransferInfo());
+            bfd.setEventConfirmSwap(eventConfirmSwap);
 
             String updatedData = objectMapper.writeValueAsString(bfd);
             redisConfig.getRedisTemplate().opsForHash().put(

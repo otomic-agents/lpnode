@@ -15,10 +15,6 @@ public class PreBusiness {
 
     String uuid;
 
-    String outTradeUuid;
-
-    String inTradeUuid;
-
     SwapAssetInformation swapAssetInformation;
 
     String hash;
