@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
         @JsonSubTypes.Type(value = ExtendedSingleSwapAsset.class, name = "SINGLECHAIN")
 })
 @NoArgsConstructor
-@JsonIgnoreProperties(ignoreUnknown = true) // 忽略未知字段，防止 super 嵌套
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class SwapAssetInformation {
 
     public static final String SWAP_TYPE_ATOMIC = "ATOMIC";

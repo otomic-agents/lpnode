@@ -12,9 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Accessors(chain = true)
 public class PreBusiness {
-
-    String uuid;
-
+    
     SwapAssetInformation swapAssetInformation;
 
     String hash;

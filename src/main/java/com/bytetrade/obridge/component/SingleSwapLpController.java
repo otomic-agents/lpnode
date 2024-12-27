@@ -11,18 +11,22 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
+import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwap;
 import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.EventInitSwapBox;
+import com.bytetrade.obridge.bean.SingleSwap.EventRefundSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.client.request.CommandConfirmSwap;
 import com.bytetrade.obridge.component.client.request.Gas;
 import com.bytetrade.obridge.component.client.request.RequestDoConfirmSwap;
 import com.bytetrade.obridge.db.redis.RedisConfig;
+import com.bytetrade.obridge.utils.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 
 import lombok.extern.slf4j.Slf4j;
@@ -111,9 +115,10 @@ public class SingleSwapLpController extends LpControllerBase {
                     }
                 }
                 log.info("✅ The transferOutEventMap is ready");
-                log.info("✅ ✅  ✅ ✅ ConfirmInitSwap");
+                log.info("✅ ✅ ConfirmInitSwap");
+                notifyEventToAmm(bfd, CmdEvent.EVENT_INIT_SWAP);
                 exePoolService.submit(() -> {
-                    log.info("Temporarily no-op");
+                    // log.info("Temporarily no-op");
                     doConfirmSwap(bfd, lpBridge);
                 });
                 return true;
@@ -123,6 +128,31 @@ public class SingleSwapLpController extends LpControllerBase {
             }
         });
         return true;
+    }
+
+    private boolean notifyEventToAmm(SingleSwapBusinessFullData bfdFromRelay, String cmdStr) {
+        try {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            LPBridge lpBridge = getBridge(bfdFromRelay.getPreBusiness().getSwapAssetInformation().getBridgeName(),
+                    bfdFromRelay.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
+            CmdEvent<SingleSwapBusinessFullData> cmdEvent = new CmdEvent<SingleSwapBusinessFullData>();
+            cmdEvent.setBusinessFullData(bfdFromRelay);
+            cmdEvent.setCmd(cmdStr);
+            log.info("🚀 Preparing to send CmdEvent: {}", cmdStr);
+            log.info("🆔 Swap ID: {}", bfdFromRelay.getPreBusiness().getHash());
+            log.info("🌉 Bridge Name: {}", lpBridge.getMsmqName());
+            log.info("🔑 Relay API Key: {}", lpBridge.getRelayApiKey());
+            log.info("📨 Sending to Queue: {}", lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey());
+            log.info("📝 CmdEvent Content: {}", gson.toJson(cmdEvent));
+
+            redisConfig.getRedisTemplate().convertAndSend(
+                    lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
+                    cmdEvent);
+            log.info("✅ CmdEvent successfully sent!");
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public void doConfirmSwap(SingleSwapBusinessFullData bfd, LPBridge lpBridge) {
@@ -202,7 +232,20 @@ public class SingleSwapLpController extends LpControllerBase {
             log.warn("⚠️ Locked business not found or not valid in Redis. Key: {}, Value: {}", redisKey, redisValue);
 
         }
+
+        String transferId = eventBox.getEventParse().getTransferId();
+
+        if (transferId != null && !transferId.startsWith("0x")) {
+            transferId = "0x" + transferId;
+        }
+        String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE, transferId);
+        if (cacheData == null) {
+            log.info("KEY_BUSINESS_CACHE find empty -- {}-{}", KEY_BUSINESS_CACHE,
+                    transferId);
+            return false;
+        }
         return true;
+
     }
 
     public void onEventConfirmSwap(EventConfirmSwapBox eventBox) {
@@ -253,6 +296,7 @@ public class SingleSwapLpController extends LpControllerBase {
 
             // Notify confirm swap
             log.info("📤 Sending confirm swap notification to LP Bridge...");
+            notifyEventToAmm(bfd, CmdEvent.EVENT_CONFIRM_SWAP);
             singleSwapRestClient.NotifyConfirmSwap(lpBridge, bfd);
             log.info("🎉 Successfully sent confirm swap notification for transferId: {}",
                     eventBox.getEventParse().getTransferId());
@@ -269,4 +313,49 @@ public class SingleSwapLpController extends LpControllerBase {
                     e);
         }
     }
+
+    public void onEventRefundSwap(EventRefundSwapBox eventBox) {
+        try {
+            log.info("event box is:{}", JsonUtils.toCompactJsonString(eventBox));
+            // Log the start of the event processing
+            log.info("🔄 Processing refund swap event - TransferId: {}", eventBox.getEventParse().getTransferId());
+
+            // Fetch business from redis
+            String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(
+                    KEY_BUSINESS_CACHE,
+                    eventBox.getEventParse().getTransferId());
+
+            // Check if cache data exists
+            if (cacheData == null) {
+                log.warn("⚠️ Business cache not found - Key: {}, TransferId: {}",
+                        KEY_BUSINESS_CACHE,
+                        eventBox.getEventParse().getTransferId());
+                return;
+            }
+
+            // Log successful cache retrieval
+            log.info("✅ Successfully retrieved business cache - TransferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+            // Deserialize the cache data
+            SingleSwapBusinessFullData bfd = objectMapper.readValue(cacheData, SingleSwapBusinessFullData.class);
+            bfd.setEventRefundSwap(eventBox.getEventParse());
+            // Log successful deserialization
+            log.info("✅ Successfully deserialized business data - TransferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+            // Notify the event to AMM
+            notifyEventToAmm(bfd, CmdEvent.EVENT_REFUND_SWAP);
+
+            // Log successful event notification
+            log.info("✅ Successfully notified AMM of refund swap event - TransferId: {}",
+                    eventBox.getEventParse().getTransferId());
+
+        } catch (Exception e) {
+            // Log the exception with detailed information
+            log.error("❌ Error processing refund swap event - TransferId: {}, Error: {}",
+                    eventBox.getEventParse().getTransferId(), e.getMessage(), e);
+        }
+    }
+
 }

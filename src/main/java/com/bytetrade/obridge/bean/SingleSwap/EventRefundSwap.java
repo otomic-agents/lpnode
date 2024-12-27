@@ -1,16 +1,17 @@
 package com.bytetrade.obridge.bean.SingleSwap;
 
-import lombok.*;
-import lombok.experimental.Accessors;
-
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.experimental.Accessors;
 
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
-public class EventConfirmSwap {
+public class EventRefundSwap {
     String transferInfo;
     String transferId;
 

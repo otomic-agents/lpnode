@@ -14,4 +14,5 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class SingleSwapBusinessFullData extends BusinessFullData<SingleSwapBusinessFullData> {
     private EventInitSwap eventInitSwap;
     private EventConfirmSwap eventConfirmSwap;
+    private EventRefundSwap eventRefundSwap;
 }

@@ -4,9 +4,6 @@ import lombok.*;
 import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-
-import com.bytetrade.obridge.bean.PreBusiness;
 
 @Data
 @Accessors(chain = true)
@@ -36,6 +33,9 @@ public class CmdEvent<T> {
     public static final String EVENT_TRANSFER_IN_CONFIRM = "EVENT_TRANSFER_IN_CONFIRM";
     public static final String EVENT_TRANSFER_IN_REFUND = "EVENT_TRANSFER_IN_REFUND";
 
+    public static final String EVENT_INIT_SWAP = "EVENT_INIT_SWAP";
+    public static final String EVENT_CONFIRM_SWAP = "EVENT_CONFIRM_SWAP";
+    public static final String EVENT_REFUND_SWAP = "EVENT_CONFIRM_SWAP";
     String cmd;// update quote,
                // update_business_transfer_out_callback(require),lock_quote_callback(require),
                // unlock_quote_callback(option), quote_removed_callback(option)

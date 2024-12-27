@@ -667,7 +667,8 @@ public class AtomicLPController extends LpControllerBase {
             // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
             LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
                     bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
-            CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_REFUND);
+            CmdEvent<AtomicBusinessFullData> cmdEvent = new CmdEvent<AtomicBusinessFullData>().
+                    setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_IN_REFUND);
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);
 

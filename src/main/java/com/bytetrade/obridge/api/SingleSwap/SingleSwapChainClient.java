@@ -5,7 +5,9 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.EventInitSwapBox;
+import com.bytetrade.obridge.bean.SingleSwap.EventRefundSwapBox;
 import com.bytetrade.obridge.component.SingleSwapLpController;
+import com.bytetrade.obridge.utils.JsonUtils;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,6 +36,13 @@ public class SingleSwapChainClient {
     public Result onConfirmSwap(@RequestBody EventConfirmSwapBox eventBox) {
         log.info("<- [EVENT] on_confirm_swap:{}", eventBox.toString());
         singleSwapController.onEventConfirmSwap(eventBox);
+        return new Result(200, "");
+    }
+
+    @PostMapping("on_refund_swap")
+    public Result onRefundSwap(@RequestBody EventRefundSwapBox eventBox) {
+        log.info("<- [EVENT] on_confirm_swap:{}", JsonUtils.toCompactJsonString(eventBox));
+        singleSwapController.onEventRefundSwap(eventBox);
         return new Result(200, "");
     }
 }

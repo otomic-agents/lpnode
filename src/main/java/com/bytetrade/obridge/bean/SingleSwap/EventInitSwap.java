@@ -38,4 +38,10 @@ public class EventInitSwap {
 
     String lpId;
 
+    public String getTransferId() {
+        if (transferId != null && !transferId.startsWith("0x")) {
+            return "0x" + transferId;
+        }
+        return transferId;
+    }
 }

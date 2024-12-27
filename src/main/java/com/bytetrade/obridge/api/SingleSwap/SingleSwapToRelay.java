@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.SingleSwapLpController;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -25,6 +27,11 @@ public class SingleSwapToRelay {
             @PathVariable String lpnode_api_key,
             @PathVariable String comm_id,
             @RequestBody SingleSwapBusinessFullData bfd) {
-                singleSwapController.onRelayInitSwap(bfd);
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+
+        String bfdJson = gson.toJson(bfd);
+        log.info("📦 bfdJson Body (SingleSwapBusinessFullData):\n{}", bfdJson);
+        log.info("update_business_init_swap info:{}", bfd);
+        singleSwapController.onRelayInitSwap(bfd);
     }
 }
