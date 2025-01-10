@@ -37,6 +37,10 @@
             <artifactId>dozer-core</artifactId>
             <version>6.5.2</version>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-mongodb</artifactId>
+        </dependency>
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -44,7 +48,11 @@
             <version>1.18.28</version>
             <scope>provided</scope>
         </dependency>
-
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.83</version>
+        </dependency>
         <!-- Apache Commons Lang -->
         <dependency>
             <groupId>org.apache.commons</groupId>

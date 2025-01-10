@@ -1,7 +1,6 @@
 package com.bytetrade.obridge.component;
 
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 
 import javax.annotation.Resource;
@@ -10,7 +9,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.SingleSwap.EventConfirmSwap;
@@ -22,6 +20,7 @@ import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.client.request.CommandConfirmSwap;
 import com.bytetrade.obridge.component.client.request.Gas;
 import com.bytetrade.obridge.component.client.request.RequestDoConfirmSwap;
+import com.bytetrade.obridge.db.SwapOrder;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.bytetrade.obridge.utils.JsonUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -65,7 +64,9 @@ public class SingleSwapLpController extends LpControllerBase {
                 // Serialize and store business data to Redis cache 💾
                 redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
                         bfd.getEventInitSwap().getTransferId(), objectMapper.writeValueAsString(bfd));
-
+                String appendData = (String) redisConfig.getRedisTemplate().opsForHash()
+                        .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash());
+                bfd.getPreBusiness().setOrderAppendData(appendData);
                 log.info("save KEY_BUSINESS_CACHE transferId:{}", bfd.getEventInitSwap().getTransferId());
 
                 // Record the start time ⏱️
@@ -98,12 +99,12 @@ public class SingleSwapLpController extends LpControllerBase {
                     doubleCheck = hit != null && hit == true;
 
                     // Log waiting status 😴
-                    log.info("😴 waiting transferOutEventMap....bid:{}", bfd.getEventInitSwap().getBidId());
+                    log.info("😴 waiting initSwapEventMap....bid:{}", bfd.getEventInitSwap().getBidId());
 
                     // Output waiting log at specified intervals
                     if ((System.currentTimeMillis() - lastLogTime) >= logInterval) {
                         log.info(String.format("Still waiting for the condition to be satisfied,bid:%s",
-                                getHexString(bfd.getEventInitSwap().getBidId())));
+                                normalizeHex(bfd.getEventInitSwap().getBidId())));
                         lastLogTime = System.currentTimeMillis();
                     }
 
@@ -114,9 +115,10 @@ public class SingleSwapLpController extends LpControllerBase {
                         log.error("error", e);
                     }
                 }
-                log.info("✅ The transferOutEventMap is ready");
+                log.info("✅ The initSwapEventMap is ready");
                 log.info("✅ ✅ ConfirmInitSwap");
                 notifyEventToAmm(bfd, CmdEvent.EVENT_INIT_SWAP);
+                createSwapOrder(bfd);
                 exePoolService.submit(() -> {
                     // log.info("Temporarily no-op");
                     doConfirmSwap(bfd, lpBridge);
@@ -153,6 +155,15 @@ public class SingleSwapLpController extends LpControllerBase {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    private boolean createSwapOrder(SingleSwapBusinessFullData bfdFromRelay) {
+        System.out.println("________________________0");
+        log.info("bfd:{}", JsonUtils.toCompactJsonString(bfdFromRelay));
+        System.out.println("________________________1");
+        SwapOrder swapOrder = new SwapOrder()
+                .setBusinessId(bfdFromRelay.getBusiness().getBusinessHash());
+        return false;
     }
 
     public void doConfirmSwap(SingleSwapBusinessFullData bfd, LPBridge lpBridge) {
@@ -221,7 +232,7 @@ public class SingleSwapLpController extends LpControllerBase {
 
     public Boolean onEventInitSwap(EventInitSwapBox eventBox) {
         String eventBusinessId = normalizeHex(eventBox.getEventParse().getBidId());
-        log.info("onEventTransferOut:" + eventBusinessId);
+        log.info("onEventInitSwap:" + eventBusinessId);
 
         String redisKey = KEY_LOCKED_BUSINESS + ":" + eventBusinessId;
         String redisValue = (String) redisConfig.getRedisTemplate().opsForValue().get(redisKey);
@@ -283,9 +294,13 @@ public class SingleSwapLpController extends LpControllerBase {
             log.info("🌉 Bron_transfer_inidge instance created for bridge: {}", bridgeName);
 
             EventConfirmSwap eventConfirmSwap = eventBox.getEventParse();
+            eventBox.setTransferInfo(eventBox.getEventParse().getTransferInfo());
             eventConfirmSwap.setTransferInfo(eventBox.getTransferInfo());
+            
             bfd.setEventConfirmSwap(eventConfirmSwap);
-
+            String appendData = (String) redisConfig.getRedisTemplate().opsForHash()
+                    .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash());
+            bfd.getPreBusiness().setOrderAppendData(appendData);
             String updatedData = objectMapper.writeValueAsString(bfd);
             redisConfig.getRedisTemplate().opsForHash().put(
                     KEY_BUSINESS_CACHE,
@@ -339,6 +354,9 @@ public class SingleSwapLpController extends LpControllerBase {
 
             // Deserialize the cache data
             SingleSwapBusinessFullData bfd = objectMapper.readValue(cacheData, SingleSwapBusinessFullData.class);
+            String appendData = (String) redisConfig.getRedisTemplate().opsForHash()
+                    .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash());
+            bfd.getPreBusiness().setOrderAppendData(appendData);
             bfd.setEventRefundSwap(eventBox.getEventParse());
             // Log successful deserialization
             log.info("✅ Successfully deserialized business data - TransferId: {}",

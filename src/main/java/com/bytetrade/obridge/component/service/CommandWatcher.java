@@ -195,11 +195,13 @@ public class CommandWatcher {
             return;
         }
         try {
-            log.info("<-Message:" + msg);
-            log.info("<-channel:" + channel);
-            log.info("<-lpBridge:{} ,relayApiKey:{}", lpBridge.getMsmqName(), lpBridge.getRelayApiKey());
             CmdEvent<?> cmdEvent = objectMapper.readValue(msg, new TypeReference<CmdEvent<?>>() {
             });
+            if (!"CMD_UPDATE_QUOTE".equals(cmdEvent.getCmd())) {
+                log.info("<-Message:" + msg);
+                log.info("<-channel:" + channel);
+                log.info("<-lpBridge:{} ,relayApiKey:{}", lpBridge.getMsmqName(), lpBridge.getRelayApiKey());
+            }
             switch (cmdEvent.getCmd()) {
                 case CmdEvent.CMD_UPDATE_QUOTE:
                     CmdEvent<AtomicBusinessFullData> atomicCmdEvent = objectMapper.readValue(msg,

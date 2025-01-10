@@ -32,34 +32,36 @@ public class AtomicChainClient {
     @PostMapping("on_transfer_out")
     public Result onTransferOut(
             @RequestBody EventTransferOutBox eventBox) {
-        log.info("<- [EVENT] on_transfer_out:{}", eventBox.toString());
-        lpController.onEventTransferOut(eventBox);
+        // log.info("<- [EVENT] on_transfer_out:{}", eventBox.toString());
+        // Temporarily comment out the processing logic.
+        // lpController.onEventTransferOut(eventBox);
         return new Result(200, "");
     }
 
     @PostMapping("on_confirm")
     public Result onConfirm(
             @RequestBody EventTransferConfirmBox eventBox) {
-        log.info("<- [EVENT]  on_confirm:{}", eventBox.toString());
-        lpController.onConfirm(eventBox);
+        // log.info("<- [EVENT] on_confirm:{}", eventBox.toString());
+        // Temporarily comment out the processing logic.
+        // lpController.onConfirm(eventBox);
         return new Result(200, "");
     }
 
     @PostMapping("on_refund")
     public Result onRefund(
             @RequestBody EventTransferRefundBox eventBox) {
-
-        log.info("<- [EVENT] on_refund:{}", eventBox.toString());
-        lpController.onEventRefund(eventBox);
+        // log.info("<- [EVENT] on_refund:{}", eventBox.toString());
+        // Temporarily comment out the processing logic.
+        // lpController.onEventRefund(eventBox);
         return new Result(200, "");
     }
 
     @PostMapping("on_transfer_in")
     public Result onTransferIn(
             @RequestBody EventTransferInBox eventBox) {
-        log.info("<- [EVENT] on_transfer_in:{}", eventBox.toString());
-        lpController.onEventTransferIn(eventBox);
+        // log.info("<- [EVENT] on_transfer_in:{}", eventBox.toString());
+        // Temporarily comment out the processing logic.
+        // lpController.onEventTransferIn(eventBox);
         return new Result(200, "");
     }
-
 }

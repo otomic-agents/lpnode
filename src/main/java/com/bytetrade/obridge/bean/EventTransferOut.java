@@ -3,6 +3,7 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
@@ -11,6 +12,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EventTransferOut {
 
     String uuid;
@@ -18,8 +20,6 @@ public class EventTransferOut {
     Long transferOutId;
 
     Long businessId;
-
-    String transferInfo;
 
     String transferId;
 
