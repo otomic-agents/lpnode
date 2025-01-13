@@ -20,6 +20,7 @@ import com.bytetrade.obridge.bean.SingleSwap.EventInitSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.EventRefundSwapBox;
 import com.bytetrade.obridge.component.AtomicLPController;
 import com.bytetrade.obridge.component.SingleSwapLpController;
+import com.bytetrade.obridge.component.client_service.ClientService;
 import com.bytetrade.obridge.db.redis.RedisLocalDb;
 import com.bytetrade.obridge.utils.JsonUtils;
 
@@ -44,8 +45,11 @@ public class EventProcessor {
     private AtomicLPController atomicLPController;
 
     @Autowired
+    private ClientService clientService;
+
+    @Autowired
     private RedisLocalDb redisLocalDb;
-    @Value("#{'${app.base-urls:http://localhost:9999}'.split(',')}")
+
     private List<String> baseUrls;
 
     @Autowired
@@ -116,6 +120,14 @@ public class EventProcessor {
 
     @PostConstruct
     public void init() {
+        baseUrls = clientService.getAllUrls();
+        if (baseUrls == null || baseUrls.isEmpty()) {
+            log.error("No base URLs found from ClientService. Please check chain service configuration.");
+            throw new IllegalStateException("No base URLs configured");
+        }
+
+        log.info("Initialized EventProcessor with {} base URLs: {}", baseUrls.size(), baseUrls);
+
         cursors = baseUrls.stream()
                 .map(url -> new CursorInfo(url, CURSOR_KEY + "_" + url.hashCode()))
                 .collect(Collectors.toList());

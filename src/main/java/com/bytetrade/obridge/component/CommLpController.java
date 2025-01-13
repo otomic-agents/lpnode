@@ -28,6 +28,7 @@ import com.bytetrade.obridge.bean.RealtimeQuote;
 import com.bytetrade.obridge.component.client.request.AbstractSignMessage;
 import com.bytetrade.obridge.component.client.request.SignMessageFactory;
 import com.bytetrade.obridge.component.service.CommandWatcher;
+import com.bytetrade.obridge.component.service.LockedBusinessService;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -44,7 +45,7 @@ public class CommLpController extends LpControllerBase {
     Map<String, CmdEvent> callbackEventMap = new ConcurrentHashMap<String, CmdEvent>();
 
     @Autowired
-    private List<String> lockedBusinessList;
+    private LockedBusinessService lockedBusinessService;
 
     @Autowired
     private ExecutorService exePoolService;
@@ -93,7 +94,7 @@ public class CommLpController extends LpControllerBase {
         }
     }
 
-        /**
+    /**
      * from relay
      * 
      * @param quoteRemoveInfoList
@@ -305,7 +306,7 @@ public class CommLpController extends LpControllerBase {
         // Persist to Redis with 12-hour expiration
         redisConfig.getRedisTemplate().opsForValue().set(KEY_LOCKED_BUSINESS + ":" + businessHash, "true", 12,
                 TimeUnit.HOURS);
-        lockedBusinessList.add(resultBusiness.getHash());
+        lockedBusinessService.addLockedBusiness(resultBusiness.getHash());
         log.info("businessHash:" + resultBusiness.getHash().toString());
         log.info("Add business in cache 【lockedBusinessList】:" + resultBusiness.getHash());
 

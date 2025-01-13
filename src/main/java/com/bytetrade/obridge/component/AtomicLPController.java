@@ -23,6 +23,9 @@ import com.bytetrade.obridge.component.client.request.Gas;
 import com.bytetrade.obridge.component.client.request.RequestDoTransferIn;
 import com.bytetrade.obridge.component.client.request.RequestDoTransferInConfirm;
 import com.bytetrade.obridge.component.client.request.RequestDoTransferInRefund;
+import com.bytetrade.obridge.component.service.LockedBusinessService;
+import com.bytetrade.obridge.component.service.TransferOutConfirmEventService;
+import com.bytetrade.obridge.component.service.TransferOutEventService;
 import com.bytetrade.obridge.bean.EventTransferOutBox;
 import com.bytetrade.obridge.bean.EventTransferInBox;
 import com.bytetrade.obridge.bean.EventTransferConfirmBox;
@@ -39,6 +42,7 @@ import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 
 import com.bytetrade.obridge.db.redis.RedisConfig;
+import com.bytetrade.obridge.db.redis.RedisLocalDb;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -64,14 +68,19 @@ public class AtomicLPController extends LpControllerBase {
     RestTemplate restTemplate;
 
     @Autowired
-    AtomicRestClient atomicRestClient;
-
-    Map<String, Boolean> transferOutEventMap = new ConcurrentHashMap<String, Boolean>();
-
-    Map<String, Boolean> transferOutConfirmEventMap = new ConcurrentHashMap<String, Boolean>();
+    RedisLocalDb redisLocalDb;
 
     @Autowired
-    private List<String> lockedBusinessList;
+    AtomicRestClient atomicRestClient;
+
+    @Autowired
+    TransferOutEventService transferOutEventService;
+
+    @Autowired
+    TransferOutConfirmEventService transferOutConfirmEventService;
+
+    @Autowired
+    LockedBusinessService lockedBusinessService;
 
     List<String> transferOutIdList = new CopyOnWriteArrayList<String>(); // new ArrayList<String>();
 
@@ -116,17 +125,18 @@ public class AtomicLPController extends LpControllerBase {
         String eventBusinessId = getHexString(eventBox.getEventParse().getBidId());
         log.info("onEventTransferOut:" + eventBusinessId);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        for (String businessId : lockedBusinessList) {
-            log.info("Compare lockedBusinessId:{} eventBusinessId:{}", businessId, eventBusinessId);
-            if (businessId.equalsIgnoreCase(eventBusinessId)) {
-                transferOutEventMap.put(businessId, true);
-                log.info("add transferOutId to transferOutEventMap:" + eventBox.getEventParse().getTransferId());
-                System.out.println(gson.toJson(eventBox));
-                transferOutIdList.add(eventBox.getEventParse().getTransferId());
-                lockedBusinessList.remove(businessId);
-                break;
-            }
+        // Use lockedBusinessService to check
+        if (lockedBusinessService.checkLockedBusiness(eventBusinessId)) {
+            transferOutEventService.addTransferOutEvent(eventBusinessId, true);
+            log.info("add transferOutId to transferOutEventMap: {}",
+                    eventBox.getEventParse().getTransferId());
+            transferOutIdList.add(eventBox.getEventParse().getTransferId());
+            System.out.println(gson.toJson(eventBox));
+            // Use lockedBusinessService's Redis template to remove
+            lockedBusinessService.removeLockedBusiness(eventBusinessId);
+            log.info("Removed business ID from locked list: {}", eventBusinessId);
         }
+
         return true;
     }
 
@@ -166,7 +176,8 @@ public class AtomicLPController extends LpControllerBase {
                         throw new Exception(String.format("transferOutEvent Timeout businessHash: [%s]",
                                 bfd.getPreBusiness().getHash()));
                     }
-                    Boolean hit = transferOutEventMap.get(getHexString(bfd.getEventTransferOut().getBidId()));
+                    String eventBusinessId = getHexString(bfd.getEventTransferOut().getBidId());
+                    Boolean hit = transferOutEventService.checkTransferOutEvent(eventBusinessId);
                     doubleCheck = hit != null && hit == true;
                     // Check if logging is required based on the specified interval
                     log.info("waiting transferOutEventMap....bid:{}", bfd.getEventTransferOut().getBidId());
@@ -382,7 +393,7 @@ public class AtomicLPController extends LpControllerBase {
         String transferId = eventBox.getEventParse().getTransferId();
         for (String tId : transferOutIdList) {
             if (tId.equalsIgnoreCase(transferId)) {
-                transferOutConfirmEventMap.put(transferId, true);
+                transferOutConfirmEventService.addTransferOutConfirmEvent(transferId, true);
                 log.info("✅ Confirm and push to transferOutConfirmEventMap {}", transferId);
                 transferOutIdList.remove(transferId);
                 break;
@@ -421,7 +432,8 @@ public class AtomicLPController extends LpControllerBase {
                     log.info("⏰ Timeout exceeded while waiting for transfer out confirmation.");
                     break;
                 }
-                Boolean hit = transferOutConfirmEventMap.get(bfd.getEventTransferOutConfirm().getTransferId());
+                Boolean hit = transferOutConfirmEventService
+                        .checkTransferOutConfirmEvent(bfd.getEventTransferOutConfirm().getTransferId());
                 doubleCheck = hit != null && hit == true;
                 try {
                     log.info("⌛ Waiting for transfer out confirm map bid:{} , OutTransferId:{}",

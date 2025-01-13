@@ -20,6 +20,7 @@ import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.client.request.CommandConfirmSwap;
 import com.bytetrade.obridge.component.client.request.Gas;
 import com.bytetrade.obridge.component.client.request.RequestDoConfirmSwap;
+import com.bytetrade.obridge.component.service.InitSwapEventService;
 import com.bytetrade.obridge.db.SwapOrder;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.bytetrade.obridge.utils.JsonUtils;
@@ -51,7 +52,7 @@ public class SingleSwapLpController extends LpControllerBase {
     SingleSwapRestClient singleSwapRestClient;
 
     @Autowired
-    private Map<String, Boolean> initSwapEventMap;
+    InitSwapEventService initSwapEventService;
 
     public Boolean onRelayInitSwap(SingleSwapBusinessFullData bfd) {
         exePoolService.submit(() -> {
@@ -95,7 +96,8 @@ public class SingleSwapLpController extends LpControllerBase {
                     }
 
                     // Check if the transferOutEvent is completed
-                    Boolean hit = initSwapEventMap.get(normalizeHex(bfd.getEventInitSwap().getBidId()));
+                    Boolean hit = initSwapEventService
+                            .checkInitSwapEvent(normalizeHex(bfd.getEventInitSwap().getBidId()));
                     doubleCheck = hit != null && hit == true;
 
                     // Log waiting status 😴
@@ -238,7 +240,7 @@ public class SingleSwapLpController extends LpControllerBase {
         String redisValue = (String) redisConfig.getRedisTemplate().opsForValue().get(redisKey);
         if (redisValue != null && redisValue.equals("true")) {
             log.info("✅ Found locked business in Redis, proceeding with transfer out logic. Key: {}", redisKey);
-            initSwapEventMap.put(eventBusinessId, true);
+            initSwapEventService.addInitSwapEvent(eventBusinessId, true);
         } else {
             log.warn("⚠️ Locked business not found or not valid in Redis. Key: {}, Value: {}", redisKey, redisValue);
 
@@ -296,7 +298,7 @@ public class SingleSwapLpController extends LpControllerBase {
             EventConfirmSwap eventConfirmSwap = eventBox.getEventParse();
             eventBox.setTransferInfo(eventBox.getEventParse().getTransferInfo());
             eventConfirmSwap.setTransferInfo(eventBox.getTransferInfo());
-            
+
             bfd.setEventConfirmSwap(eventConfirmSwap);
             String appendData = (String) redisConfig.getRedisTemplate().opsForHash()
                     .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash());
