@@ -49,6 +49,7 @@ public class LPCommandWatcher {
             for (RedisConnection rc : connections) {
                 // retrieve list of currently subscribed channels
                 if (rc.getSubscription() != null) {
+                    log.info("close ..................");
                     Collection<byte[]> subscribedChannels = rc.getSubscription().getChannels();
                     if (subscribedChannels != null) {
                         // unsubscribe from these channels one by one
