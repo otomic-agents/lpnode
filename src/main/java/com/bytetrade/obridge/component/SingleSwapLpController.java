@@ -152,7 +152,6 @@ public class SingleSwapLpController extends LpControllerBase {
             redisConfig.getRedisTemplate().convertAndSend(
                     lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);
-            log.info("✅ CmdEvent successfully sent!");
             return true;
         } catch (Exception e) {
             return false;
@@ -160,9 +159,7 @@ public class SingleSwapLpController extends LpControllerBase {
     }
 
     private boolean createSwapOrder(SingleSwapBusinessFullData bfdFromRelay) {
-        System.out.println("________________________0");
         log.info("bfd:{}", JsonUtils.toCompactJsonString(bfdFromRelay));
-        System.out.println("________________________1");
         SwapOrder swapOrder = new SwapOrder()
                 .setBusinessId(bfdFromRelay.getBusiness().getBusinessHash());
         return false;
@@ -296,8 +293,6 @@ public class SingleSwapLpController extends LpControllerBase {
             log.info("🌉 Bron_transfer_inidge instance created for bridge: {}", bridgeName);
 
             EventConfirmSwap eventConfirmSwap = eventBox.getEventParse();
-            eventBox.setTransferInfo(eventBox.getEventParse().getTransferInfo());
-            eventConfirmSwap.setTransferInfo(eventBox.getTransferInfo());
 
             bfd.setEventConfirmSwap(eventConfirmSwap);
             String appendData = (String) redisConfig.getRedisTemplate().opsForHash()

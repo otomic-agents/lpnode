@@ -33,34 +33,39 @@ public class AtomicSignMessage extends AbstractSignMessage {
 
         try {
             String uri = baseUri + getSignMessageSubPath(chainId);
-
+            
             log.info("Request signature URL: {}", uri);
-
+            
             ObjectMapper mapper = new ObjectMapper()
                     .setPropertyNamingStrategy(PropertyNamingStrategies.SNAKE_CASE)
                     .enable(SerializationFeature.INDENT_OUTPUT);
-            log.info("Serialized JSON:\n{}", mapper.writeValueAsString(this));
-
+            log.info("generateSign Serialized JSON:\n{}", mapper.writeValueAsString(this));
+            
             long signStartTime = System.nanoTime();
-
-            ResponseSignMessage response = restTemplate.postForObject(
+            
+            
+            String rawResponse = restTemplate.postForObject(
                     uri,
                     this,
-                    ResponseSignMessage.class);
-
+                    String.class); 
+            
+            log.info("Raw Response:\n{}", rawResponse);
+            
+            ResponseSignMessage response = mapper.readValue(rawResponse, ResponseSignMessage.class);
+            
             double signDurationInMilliseconds = (System.nanoTime() - signStartTime) / 1_000_000.0;
             log.info("Sign execution time: {} ms", signDurationInMilliseconds);
-
+            
             if (response == null || response.getSigned() == null) {
                 log.error("Failed to get signature: response is null or signature is missing");
                 throw new SignatureException("Failed to generate signature");
             }
-
+            
             log.info("Response message: {}", response);
             log.info("The signature of lp has been completed, signData: {}", response.getSigned());
-
+            
             return response.getSigned();
-
+            
         } catch (Exception e) {
             log.error("Error generating atomic signature", e);
             throw new RuntimeException("Failed to generate atomic signature", e);

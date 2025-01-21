@@ -30,7 +30,7 @@ public class SingleSwapToRelay {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
         String bfdJson = gson.toJson(bfd);
-        log.info("📦 bfdJson Body (SingleSwapBusinessFullData):\n{}", bfdJson);
+        log.info("InitSwap from relay (SingleSwapBusinessFullData):\n{}", bfdJson);
         log.info("update_business_init_swap info:{}", bfd);
         singleSwapController.onRelayInitSwap(bfd);
     }

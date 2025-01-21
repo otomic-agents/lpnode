@@ -35,7 +35,7 @@ public class CommRestClient {
     public String doNotifyRealtimeQuote(RealtimeQuote realtimeQuote, LPBridge lpBridge) {
         String requestUrl = lpBridge.getRelayUri() + "/relay" + "/lpnode/" + lpBridge.getRelayApiKey()
                 + "/realtime_quote";
-        log.info(" ..,urlIs:{}", requestUrl);
+        log.info("Sending real-time price to relay, url is: {}", requestUrl);
         Mono<String> result = webClient.post()
                 .uri(requestUrl)
                 .httpRequest(httpRequest -> {

@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EventRefund {
-
+    String transferInfo; // send to amm
     private String transferId;
 
 }

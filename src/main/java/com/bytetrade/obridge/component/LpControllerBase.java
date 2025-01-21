@@ -50,7 +50,7 @@ public class LpControllerBase {
             log.info("⚠️ API Key too short: {}", relayApiKey);
             return null;
         }
-        log.info("✅ Valid API Key: {}", relayApiKey);
+        // log.info("✅ Valid API Key: {}", relayApiKey);
         String[] parts = bridgeName.split("_");
         String key = parts[2] + "/" + parts[3] + "_" + parts[0] + "_" + parts[1];
         LPBridge lpBridge = lpBridgeService.getLPBridge(key + "_" + relayApiKey);

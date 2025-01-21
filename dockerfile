@@ -5,7 +5,7 @@ RUN cd src && ./mvnw package
 
 
 
-From openjdk:21-slim
+FROM openjdk:21-slim
 
 COPY --from=builder /src/target /app
 

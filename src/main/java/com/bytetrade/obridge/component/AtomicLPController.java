@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -95,7 +96,18 @@ public class AtomicLPController extends LpControllerBase {
      */
     public void relayAskQuote(AskCmd askCmd) {
         log.info("<- [Relay HTTP call] on ask quote:" + askCmd.toString());
-        log.info("maps {}", lpBridgeService.getLpBridgesChannelMap().toString());
+        log.info("LP Bridges Channel Map - {}",
+                lpBridgeService.getLpBridgesChannelMap().entrySet().stream()
+                        .map(entry -> String.format(
+                                "\n  Bridge: %s\n    LP ID: %s\n    Chain: %d -> %d\n    Tokens: %s -> %s\n    Relay Key: %s",
+                                entry.getKey(),
+                                entry.getValue().getLpId(),
+                                entry.getValue().getBridge().getSrcChainId(),
+                                entry.getValue().getBridge().getDstChainId(),
+                                entry.getValue().getBridge().getSrcToken(),
+                                entry.getValue().getBridge().getDstToken(),
+                                entry.getValue().getRelayApiKey()))
+                        .collect(Collectors.joining("\n")));
         String[] parts = askCmd.getBridge().split("_");
         String key = parts[2] + "/" + parts[3] + "_" + parts[0] + "_" + parts[1];
         LPBridge lpBridge = lpBridgeService.getLPBridge(key + "_" + askCmd.getRelayApiKey());
@@ -299,10 +311,11 @@ public class AtomicLPController extends LpControllerBase {
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
                     bfd.getEventTransferOut().getTransferId(), objectMapper.writeValueAsString(bfd));
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
-                    eventBox.getEventParse().getTransferId(), objectMapper.writeValueAsString(bfd));
+                    bfd.getEventTransferIn().getTransferId(), objectMapper.writeValueAsString(bfd));
 
-            log.info("TransferIn:" + bfd.getEventTransferIn());
-            log.info("bfd:" + objectMapper.writeValueAsString(bfd));
+            log.info("TransferOut - ID:{}, Details:{}", bfd.getEventTransferOut().getTransferId(), bfd.getEventTransferOut());
+            log.info("TransferIn - ID:{}, Details:{}", bfd.getEventTransferIn().getTransferId(), bfd.getEventTransferIn());
+            log.info("bfd:{}", objectMapper.writeValueAsString(bfd));
 
             LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
                     bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
@@ -366,6 +379,10 @@ public class AtomicLPController extends LpControllerBase {
                     log.info("Time's up...");
                     String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
                             businessFullData.getEventTransferOut().getTransferId());
+                    if (cacheData == null) {
+                        log.warn("No cache data found for transferId: {}", businessFullData.getEventTransferOut().getTransferId());
+                        return;
+                    }
                     AtomicBusinessFullData bfd = objectMapper.readValue(cacheData, AtomicBusinessFullData.class);
                     if (bfd.getEventTransferInConfirm() != null) {
                         log.info("lp has already confirmed in ");
@@ -523,7 +540,7 @@ public class AtomicLPController extends LpControllerBase {
             // Divert TransferOutConfirm and TransferInConfirm
             // TransferOutConfirm
             if (!eventBox.getEventParse().getTransferId().equalsIgnoreCase(bfd.getEventTransferIn().getTransferId())) {
-                log.info("not hit Transfer in ,is outConfirm");
+                log.info("not hit Transfer in , is outConfirm");
                 log.info("TransferIn TransferId:" + bfd.getEventTransferIn().getTransferId());
                 log.info("Event id:" + eventBox.getEventParse().getTransferId());
                 log.info("Business Id:{}", bfd.getPreBusiness().getHash());

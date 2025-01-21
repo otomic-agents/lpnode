@@ -13,9 +13,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EventConfirmSwap {
-    String transferInfo;
     String transferId;
-
+    String transferInfo;
     public String getTransferId() {
         return formatHexValue(transferId);
     }

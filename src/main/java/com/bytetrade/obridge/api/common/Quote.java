@@ -41,7 +41,7 @@ public class Quote {
         long duration = endTime - startTime;
 
         double durationInMilliseconds = duration / 1_000_000.0;
-        log.info("🌍🌍🌍🌍🌍🌍🌍🌍🌍Execution time: " + durationInMilliseconds + " milliseconds");
+        log.info("LockQuote execution time: " + durationInMilliseconds + " milliseconds");
         if (resultBusiness.getLocked() == false) {
             result = new ResultLockQuote(32011, resultBusiness.getLockMessage(), resultBusiness);
         }

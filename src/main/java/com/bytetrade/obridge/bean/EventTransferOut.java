@@ -15,6 +15,8 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class EventTransferOut {
 
+    String transferInfo;
+    
     String uuid;
 
     Long transferOutId;

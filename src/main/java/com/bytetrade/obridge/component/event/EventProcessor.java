@@ -6,7 +6,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -30,6 +29,8 @@ import lombok.NoArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import javax.annotation.PostConstruct;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 import javax.annotation.PreDestroy;
 
@@ -100,6 +101,7 @@ public class EventProcessor {
     }
 
     @Data
+    @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
     static class EventData {
         private String _id;
         private Long blockNumber;
@@ -141,10 +143,8 @@ public class EventProcessor {
         while (running.get()) {
             try {
                 processNextEventForTarget(cursorInfo);
-
-                // Log cursor position every 30 seconds
                 long currentTime = System.currentTimeMillis();
-                if (currentTime - lastCursorLogTime > 30000) {
+                if (currentTime - lastCursorLogTime > 60000) {
                     EventCursor cursor = cursorInfo.getCurrentCursor();
                     if (cursor != null) {
                         log.info("🎯 Current cursor position for {}- Block: {}, TxIndex: {}",
@@ -167,65 +167,100 @@ public class EventProcessor {
     private void processNextEventForTarget(CursorInfo cursorInfo) {
         EventCursor cursor = cursorInfo.getCurrentCursor();
         ResponseEntity<EventResponse> response;
-
+    
         try {
-            if (cursor == null) {
+            // Check if the latest event needs to be fetched
+            boolean needLatestEvent = cursor == null || 
+                                    cursor.getBlockNumber() == null || 
+                                    cursor.getTransactionIndex() == null;
+    
+            if (needLatestEvent) {
+                // Fetch the latest event
                 response = getLatestEvent(cursorInfo.baseUrl);
-                log.info("🔍 Fetching latest event as cursor is null for {}", cursorInfo.baseUrl);
+                log.info("🔍 Fetching latest event for {}", cursorInfo.baseUrl);
+    
+                // Validate the response
+                EventData latestEventData = validateAndGetEventData(response);
+                if (latestEventData == null || 
+                    latestEventData.getBlockNumber() == null || 
+                    latestEventData.getTransactionIndex() == null) {
+                    log.warn("⚠️ Latest event data is incomplete from {}. Will retry getting latest event.", 
+                            cursorInfo.baseUrl);
+                    return; // Return directly, the next loop will continue to try fetching the latest event
+                }
+    
+                // Process the event and update the cursor
+                handleEventAndUpdateCursor(latestEventData, cursorInfo);
             } else {
+                // If a valid cursor exists, fetch the next event
                 response = getNextEvent(cursorInfo.baseUrl, cursor);
+                EventData nextEventData = validateAndGetEventData(response);
+                
+                if (nextEventData != null) {
+                    handleEventAndUpdateCursor(nextEventData, cursorInfo);
+                }
             }
-
-            // Check if response is null
-            if (response == null) {
-                log.warn("⚠️ Response is null from {}. Current cursor: {}",
-                        cursorInfo.baseUrl,
-                        cursor != null ? JsonUtils.toJsonString(cursor) : "null");
-                return;
-            }
-
-            // Check if response body is null
-            EventResponse body = response.getBody();
-            if (body == null) {
-                log.warn("⚠️ Response body is null from {}. Response status: {}",
-                        cursorInfo.baseUrl,
-                        response.getStatusCode());
-                return;
-            }
-
-            // Check if event data is null
-            EventData eventData = body.getData();
-            if (eventData == null) {
-                // log.warn("⚠️ Event data is null from {}. Response body: {}",
-                // cursorInfo.baseUrl,
-                // JsonUtils.toJsonString(body));
-                return;
-            }
-
-            try {
-                // Handle event first
-                handleEvent(eventData);
-                // Update cursor after successful event handling
-                cursorInfo.updateCursor(eventData);
-                log.info("✅ Successfully processed event and updated cursor for {} at block {} tx {}",
-                        cursorInfo.baseUrl,
-                        eventData.getBlockNumber(),
-                        eventData.getTransactionIndex());
-            } catch (Exception e) {
-                log.error("💥 Error handling event for {} at block {} tx {}: {}",
-                        cursorInfo.baseUrl,
-                        eventData.getBlockNumber(),
-                        eventData.getTransactionIndex(),
-                        e.getMessage(),
-                        e);
-                throw e;
-            }
-
+    
         } catch (Exception e) {
             log.error("💥 Error in event processing loop for {} with cursor {}: {}",
                     cursorInfo.baseUrl,
                     cursor != null ? JsonUtils.toJsonString(cursor) : "null",
                     e.getMessage());
+            // If an error occurs during processing, do not update the cursor
+            throw e;
+        }
+    }
+    
+    // Validate the response and get event data
+    private EventData validateAndGetEventData(ResponseEntity<EventResponse> response) {
+        if (response == null) {
+            log.warn("⚠️ Response is null");
+            return null;
+        }
+    
+        EventResponse body = response.getBody();
+        if (body == null) {
+            log.warn("⚠️ Response body is null. Response status: {}", response.getStatusCode());
+            return null;
+        }
+    
+        EventData eventData = body.getData();
+        if (eventData == null) {
+            // log.warn("⚠️ Event data is null");
+            return null;
+        }
+    
+        // Validate key fields
+        if (eventData.getBlockNumber() == null || eventData.getTransactionIndex() == null) {
+            log.warn("⚠️ Event data is incomplete: blockNumber={}, transactionIndex={}", 
+                    eventData.getBlockNumber(), 
+                    eventData.getTransactionIndex());
+            return null;
+        }
+    
+        return eventData;
+    }
+    
+    // Process the event and update the cursor
+    private void handleEventAndUpdateCursor(EventData eventData, CursorInfo cursorInfo) {
+        try {
+            // Process the event
+            handleEvent(eventData);
+            
+            // Update the cursor after successful processing
+            cursorInfo.updateCursor(eventData);
+            
+            log.info("✅ Successfully processed event and updated cursor for {} at block {} tx {}",
+                    cursorInfo.getBaseUrl(),
+                    eventData.getBlockNumber(),
+                    eventData.getTransactionIndex());
+        } catch (Exception e) {
+            log.error("💥 Error handling event for {} at block {} tx {}: {}",
+                    cursorInfo.getBaseUrl(),
+                    eventData.getBlockNumber(),
+                    eventData.getTransactionIndex(),
+                    e.getMessage(),
+                    e);
             throw e;
         }
     }
@@ -266,118 +301,126 @@ public class EventProcessor {
                     log.info("📤 Processing Transfer Out Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferOutBox event = JsonUtils.parseObject(jsonString, EventTransferOutBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());
                     atomicLPController.onEventTransferOut(event);
                 }
                 case "LogTransferOutConfirmed" -> {
                     log.info("✅ Processing Transfer Out Confirm Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferConfirmBox event = JsonUtils.parseObject(jsonString, EventTransferConfirmBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());
                     atomicLPController.onConfirm(event);
                 }
                 case "LogTransferOutRefunded" -> {
                     log.info("↩️ Processing Transfer Out Refund Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferRefundBox event = JsonUtils.parseObject(jsonString, EventTransferRefundBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());
                     atomicLPController.onEventRefund(event);
                 }
                 case "LogNewTransferIn" -> {
                     log.info("📥 Processing Transfer In Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferInBox event = JsonUtils.parseObject(jsonString, EventTransferInBox.class);
-                    event.getEventParse().setTransferInfo(event.getTransferInfo());
-
+                
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     atomicLPController.onEventTransferIn(event);
                 }
                 case "LogTransferInConfirmed" -> {
                     log.info("✅ Processing Transfer In Confirm Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferConfirmBox event = JsonUtils.parseObject(jsonString, EventTransferConfirmBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     atomicLPController.onConfirm(event);
                 }
                 case "LogTransferInRefunded" -> {
                     log.info("↩️ Processing Transfer In Refund Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventTransferRefundBox event = JsonUtils.parseObject(jsonString, EventTransferRefundBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     atomicLPController.onEventRefund(event);
                 }
                 case "LogInitSwap" -> {
                     log.info("🔄 Processing Init Swap Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventInitSwapBox event = JsonUtils.parseObject(jsonString, EventInitSwapBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     singleSwapLpController.onEventInitSwap(event);
                 }
                 case "LogSwapConfirmed" -> {
                     log.info("✅ Processing Confirm Swap Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventConfirmSwapBox event = JsonUtils.parseObject(jsonString, EventConfirmSwapBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     singleSwapLpController.onEventConfirmSwap(event);
                 }
                 case "LogSwapRefunded" -> {
                     log.info("↩️ Processing Refund Swap Event [TxHash: {}]", eventData.getTransactionHash());
                     log.info("Original input data: {}", JsonUtils.toJsonString(eventData));
 
-                    eventData.setEventParse(eventData.parsedData);
+                    // eventData.setEventParse(eventData.parsedData);
                     String jsonString = JsonUtils.convertToSnakeCase(JsonUtils.toJsonString(eventData));
                     EventRefundSwapBox event = JsonUtils.parseObject(jsonString, EventRefundSwapBox.class);
 
                     log.info("Processed event data: chainId={}, transferInfo={}",
                             event.getChainId(),
                             JsonUtils.toJsonString(event.getTransferInfo()));
+                    event.getEventParse().setTransferInfo(event.getTransferInfo());    
                     singleSwapLpController.onEventRefundSwap(event);
                 }
                 default -> log.warn("⚠️ Unknown event type: {}", eventData.getEventName());

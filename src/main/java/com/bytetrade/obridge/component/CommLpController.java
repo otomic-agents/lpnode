@@ -163,10 +163,7 @@ public class CommLpController extends LpControllerBase {
 
         List<QuoteBase> quotes = new ArrayList<QuoteBase>();
         quotes.add(quoteBase);
-        // log.info("-> send keep quote message: quotes:{} lpBridge:{}", quotes,
-        // lpBridge);
-        String objectResponseEntity = commRestClient.doNotifyBridgeLive(quotes, lpBridge);
-        // log.info("response message:", objectResponseEntity);
+        commRestClient.doNotifyBridgeLive(quotes, lpBridge);
     }
 
     /**
@@ -299,7 +296,7 @@ public class CommLpController extends LpControllerBase {
         log.info(AddressHelper.getDecimalAddress(
                 resultBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getLpBridgeAddress(),
                 lpBridge.getBridge().getSrcChainId()));
-        log.info("bidIdString:" + bidIdString.toString());
+        log.info("Business Id Source str: " + bidIdString.toString());
 
         String businessHash = Hash.sha3String(bidIdString);
         resultBusiness.setHash(businessHash);
@@ -313,13 +310,15 @@ public class CommLpController extends LpControllerBase {
         redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_APPEND, resultBusiness.getHash(),
                 resultBusiness.getOrderAppendData());
 
-        log.info("result business:{}", resultBusiness.toString());
+        // log.info("Lock quote business result :{}", resultBusiness.toString());
         return resultBusiness;
     }
 
     public void newQuoteCallback(String key, CmdEvent cmdEvent) {
-        log.info("lock quote callback put: {}", key);
+        log.info("Lock quote callback received - key: {}, eventType: {}, timestamp: {}",
+                key,
+                cmdEvent.getCmd(),
+                System.currentTimeMillis());
         callbackEventMap.put(key, cmdEvent);
     }
-
 }
