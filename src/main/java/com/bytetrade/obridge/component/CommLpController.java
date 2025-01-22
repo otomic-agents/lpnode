@@ -71,7 +71,9 @@ public class CommLpController extends LpControllerBase {
     @PostConstruct
     public void init() {
         log.info("LPController init");
+        // redisConfig.getRedisTemplate().delete(KEY_CONFIG_CACHE);
         String configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
+        configStr = (configStr == null || configStr.isEmpty()) ? "{\"bridges\":[]}" : configStr;
         log.info("LPController configStr:" + configStr);
         try {
             LPConfigCache bridgesBox = objectMapper.readValue(configStr, LPConfigCache.class);
