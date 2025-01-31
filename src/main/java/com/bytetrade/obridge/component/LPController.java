@@ -109,7 +109,13 @@ public class LPController extends LpControllerBase {
     public void init() {
         log.info("LPController init");
         // redisConfig.getRedisTemplate().delete(KEY_CONFIG_CACHE);
-        String configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
+        String configStr = "";
+        try {
+            configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
+        } catch (Exception e) {
+            log.error("Application initialization failed", e);
+            System.exit(1); // Non-zero exit code indicates failure
+        }
         configStr = (configStr == null || configStr.isEmpty()) ? "{\"bridges\":[]}" : configStr;
         log.info("LPController configStr:" + configStr);
         try {
