@@ -108,6 +108,17 @@ public class LPController extends LpControllerBase {
     @PostConstruct
     public void init() {
         log.info("LPController init");
+        log.info("start watchdog...");
+        Thread watchdog = Thread.startVirtualThread(() -> {
+            try {
+                Thread.sleep(60000);
+                log.error("Init failed to complete in 60 seconds, exiting application");
+                Runtime.getRuntime().halt(1);
+            } catch (InterruptedException e) {
+                // Normal exit path - init completed successfully
+            }
+        });
+        
         // redisConfig.getRedisTemplate().delete(KEY_CONFIG_CACHE);
         String configStr = "";
         try {
@@ -124,7 +135,10 @@ public class LPController extends LpControllerBase {
             updateConfig(bridgesBox.getBridges(), false);
             cmdWatcher.watchCmds(this);
             exePoolService.submit(this.reportBridge(lpBridgesChannelMap));
-        } catch (Exception e) {
+            log.info("exit watchdog...");
+            watchdog.interrupt();
+        }
+        catch (Exception e) {
             log.error("error", e);
         }
     }
