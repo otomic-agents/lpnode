@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.gson.Gson;
@@ -16,7 +17,7 @@ import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-
+import java.time.Duration;
 import com.bytetrade.obridge.component.client.request.CommandTransferInConfirm;
 import com.bytetrade.obridge.component.client.request.CommandTransferIn;
 import com.bytetrade.obridge.component.client.request.CommandTransferInRefund;
@@ -374,6 +375,7 @@ public class AtomicLPController extends LpControllerBase {
                 "If the user does not confirm after {} hours {} minutes {} seconds , then a refund will be issued.",
                 hours, minutes, seconds);
         try {
+            executeAfter = executeAfter + 3000;  
             taskSchedulerService.scheduleTask(() -> {
                 try {
                     log.info("Time's up...");
@@ -385,7 +387,11 @@ public class AtomicLPController extends LpControllerBase {
                     }
                     AtomicBusinessFullData bfd = objectMapper.readValue(cacheData, AtomicBusinessFullData.class);
                     if (bfd.getEventTransferInConfirm() != null) {
-                        log.info("lp has already confirmed in ");
+                        log.info("lp has already confirmed in ,businessId: {}", bfd.getBusiness().getBusinessHash());
+                        return;
+                    }
+                    if (bfd.getEventTransferInRefund() != null) {
+                        log.info("lp has already refunded, businessId: {}", bfd.getBusiness().getBusinessHash());
                         return;
                     }
                     if (bfd.getEventTransferOutConfirm() == null
@@ -619,6 +625,18 @@ public class AtomicLPController extends LpControllerBase {
     }
 
     public void doTransferInRefund(AtomicBusinessFullData bfd, LPBridge lpBridge) {
+        String businessHash = bfd.getPreBusiness().getHash();
+        String redisKey = "transfer_in_refund_executed";
+        
+        // Check if this operation has been executed before
+        Boolean hasExecuted = redisConfig.getRedisTemplate().opsForHash()
+                .hasKey(redisKey, businessHash);
+        
+        if (Boolean.TRUE.equals(hasExecuted)) {
+            log.info("Transfer in refund already executed for business hash: [{}], skipping", businessHash);
+            return;
+        }
+    
         log.info("do transfer in refund businessHash: [{}]", bfd.getPreBusiness().getHash());
         log.info("tx_in info:{}", bfd.getEventTransferIn().toString());
         CommandTransferInRefund commandTransferInRefund = new CommandTransferInRefund()
@@ -635,26 +653,31 @@ public class AtomicLPController extends LpControllerBase {
                 .setEarliestRefundTime(bfd.getEventTransferOut().getEarliestRefundTime())
                 .setAgreementReachedTime(bfd.getEventTransferOut().getAgreementReachedTime())
                 .setAppendInformation(bfd.getPreBusiness().getSwapAssetInformation().getAppendInformation());
-        Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_STANDARD);
-        RequestDoTransferInRefund request = new RequestDoTransferInRefund()
-                .setTransactionType("LOCAL_PADDING")
-                .setCommandTransferRefund(commandTransferInRefund)
-                .setGas(gas);
-
-        try {
-            log.info("RequestDoTransferInRefund:" + objectMapper.writeValueAsString(request));
-        } catch (JsonProcessingException e) {
-            // TODO Auto-generated catch block
-            e.printStackTrace();
-        }
-
-        String objectResponseEntity = restTemplate.postForObject(
-                lpBridge.getDstClientUri() + "/lpnode/refund",
-                request,
-                String.class);
-
-        log.info("response message:{}", objectResponseEntity.toString());
+            Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_STANDARD);
+            RequestDoTransferInRefund request = new RequestDoTransferInRefund()
+                    .setTransactionType("LOCAL_PADDING")
+                    .setCommandTransferRefund(commandTransferInRefund)
+                    .setGas(gas);
+    
+            try {
+                log.info("RequestDoTransferInRefund:" + objectMapper.writeValueAsString(request));
+            } catch (JsonProcessingException e) {
+                // TODO Auto-generated catch block
+                e.printStackTrace();
+            }
+    
+            String objectResponseEntity = restTemplate.postForObject(
+                    lpBridge.getDstClientUri() + "/lpnode/refund",
+                    request,
+                    String.class);
+    
+            log.info("response message:{}", objectResponseEntity.toString());
+    
+            // Store execution record with 7 days expiration 
+            redisConfig.getRedisTemplate().opsForHash().put(redisKey, businessHash, "1");
+            redisConfig.getRedisTemplate().expire(redisKey, 7, TimeUnit.DAYS);
     }
+    
 
     public void onEventRefund(EventTransferRefundBox eventBox) {
         try {
