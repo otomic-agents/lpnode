@@ -71,8 +71,25 @@ public class CommLpController extends LpControllerBase {
     @PostConstruct
     public void init() {
         log.info("LPController init");
+        log.info("start watchdog...");
+        Thread watchdog = Thread.startVirtualThread(() -> {
+            try {
+                Thread.sleep(60000);
+                log.error("Init failed to complete in 60 seconds, exiting application");
+                Runtime.getRuntime().halt(1);
+            } catch (InterruptedException e) {
+                // Normal exit path - init completed successfully
+            }
+        });
+        
         // redisConfig.getRedisTemplate().delete(KEY_CONFIG_CACHE);
-        String configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
+        String configStr = "";
+        try {
+            configStr = (String) redisConfig.getRedisTemplate().opsForValue().get(KEY_CONFIG_CACHE);
+        } catch (Exception e) {
+            log.error("Application initialization failed", e);
+            System.exit(1); // Non-zero exit code indicates failure
+        }
         configStr = (configStr == null || configStr.isEmpty()) ? "{\"bridges\":[]}" : configStr;
         log.info("LPController configStr:" + configStr);
         try {
@@ -81,6 +98,8 @@ public class CommLpController extends LpControllerBase {
             updateConfig(bridgesBox.getBridges(), false);
             cmdWatcher.watchCmds();
             exePoolService.submit(this.reportBridge(lpBridgeService.getLpBridgesChannelMap()));
+            log.info("exit watchdog...");
+            watchdog.interrupt();
         } catch (Exception e) {
             log.error("error", e);
         }
