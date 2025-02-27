@@ -203,7 +203,13 @@ public class CommLpController extends LpControllerBase {
                 .setCapacity(quoteData.getCapacity())
                 .setQuoteHash(quoteData.getQuoteHash())
                 .setLpNodeUri(selfUri)
+                
                 .setLpBridgeAddress(lpBridge.getLpReceiverAddress());
+        if (quoteBase.getBridge().getSrcChainId().equals(quoteBase.getBridge().getDstChainId())){
+            quoteBase.setCapabilities(List.of("single_swap"));
+        }
+        
+        log.info("capabilities set value: {}", quoteBase.getCapabilities());
 
         RealtimeQuote realtimeQuote = new RealtimeQuote()
                 .setQuoteBase(quoteBase)
