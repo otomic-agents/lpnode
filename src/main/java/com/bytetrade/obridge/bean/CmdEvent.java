@@ -3,12 +3,14 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
 public class CmdEvent<T> {
 
     public static final String CMD_UPDATE_QUOTE = "CMD_UPDATE_QUOTE";

@@ -3,13 +3,16 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.PropertyNamingStrategies;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 import java.util.List;
 @Data
 @Accessors(chain = true)
 @JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
+@JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
 public class QuoteBase {
     BridgeInfo bridge;
 
@@ -33,6 +36,7 @@ public class QuoteBase {
     String quoteHash;
 
     String relayApiKey;
-
+    
+    @JsonDeserialize(contentAs = String.class)
     List<String> capabilities;
 }

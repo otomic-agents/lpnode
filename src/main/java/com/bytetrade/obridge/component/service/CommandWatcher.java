@@ -195,6 +195,7 @@ public class CommandWatcher {
         if ("SYSTEM_PING_CHANNEL".equals(channel)) {
             return;
         }
+        // log.info("<-Message:" + msg);
         try {
             CmdEvent<?> cmdEvent = objectMapper.readValue(msg, new TypeReference<CmdEvent<?>>() {
             });
