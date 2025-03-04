@@ -37,6 +37,5 @@ public class QuoteBase {
 
     String relayApiKey;
     
-    @JsonDeserialize(contentAs = String.class)
-    List<String> capabilities;
+    String capabilities;
 }
