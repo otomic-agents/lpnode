@@ -256,7 +256,6 @@ public class CommLpController extends LpControllerBase {
                 }
             }
         }
-        preBusiness.getSwapAssetInformation().getQuote().getQuoteBase().setCapabilities(null);
         CmdEvent cmdEvent = new CmdEvent().setPreBusiness(preBusiness).setCmd(CmdEvent.EVENT_LOCK_QUOTE);
         // send Event to Amm application
         try {
