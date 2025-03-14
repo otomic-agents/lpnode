@@ -1,8 +1,6 @@
 package com.bytetrade.obridge.component;
 
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -12,12 +10,10 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import javax.annotation.Resource;
 
-import org.springframework.data.redis.core.RedisTemplate;
 import org.quartz.SchedulerException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
-import java.time.Duration;
 import com.bytetrade.obridge.component.client.request.CommandTransferInConfirm;
 import com.bytetrade.obridge.component.client.request.CommandTransferIn;
 import com.bytetrade.obridge.component.client.request.CommandTransferInRefund;
@@ -41,7 +37,6 @@ import com.bytetrade.obridge.bean.BusinessEvent;
 import com.bytetrade.obridge.bean.BusinessEventItem;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.CmdEvent;
-import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.bytetrade.obridge.db.redis.RedisLocalDb;
@@ -205,10 +200,12 @@ public class AtomicLPController extends LpControllerBase {
                         log.error("error", e);
                     }
                 }
+                startDoTransferIn(bfd, lpBridge);
                 log.info("The transferOutEventMap is ready");
                 log.info("Send Transaction out Event to Amm");
                 redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                         cmdEvent);
+
                 return true;
             } catch (Exception e) {
                 log.error("error", e);
@@ -217,6 +214,20 @@ public class AtomicLPController extends LpControllerBase {
         });
 
         return true;
+    }
+
+    public void startDoTransferIn(AtomicBusinessFullData bfd, LPBridge lpBridge) {
+        log.info("Start submitting transfer-in task, businessHash: {}", bfd.getPreBusiness().getHash());
+        exePoolService.submit(() -> {
+            try {
+                log.info("Begin executing transfer-in task, businessHash: {}", bfd.getPreBusiness().getHash());
+                doTransferIn(bfd, lpBridge);
+                log.info("Transfer-in task completed, businessHash: {}", bfd.getPreBusiness().getHash());
+            } catch (Exception e) {
+                log.error("Exception occurred during transfer-in task, businessHash: {}, error: {}",
+                        bfd.getPreBusiness().getHash(), e.getMessage(), e);
+            }
+        });
     }
 
     public void doTransferIn(AtomicBusinessFullData bfd, LPBridge lpBridge) {
@@ -299,8 +310,6 @@ public class AtomicLPController extends LpControllerBase {
             AtomicBusinessFullData bfd = objectMapper.readValue(cacheData, AtomicBusinessFullData.class);
             if (eventBox.getMatchingHashlock() != null && eventBox.getMatchingHashlock() == true) {
                 // sync business
-                // LPBridge lpBridge =
-                // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
                 LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
                         bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
                 eventBox.getEventParse().setSrcChainId(lpBridge.getBridge().getSrcChainId());
@@ -314,8 +323,10 @@ public class AtomicLPController extends LpControllerBase {
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
                     bfd.getEventTransferIn().getTransferId(), objectMapper.writeValueAsString(bfd));
 
-            log.info("TransferOut - ID:{}, Details:{}", bfd.getEventTransferOut().getTransferId(), bfd.getEventTransferOut());
-            log.info("TransferIn - ID:{}, Details:{}", bfd.getEventTransferIn().getTransferId(), bfd.getEventTransferIn());
+            log.info("TransferOut - ID:{}, Details:{}", bfd.getEventTransferOut().getTransferId(),
+                    bfd.getEventTransferOut());
+            log.info("TransferIn - ID:{}, Details:{}", bfd.getEventTransferIn().getTransferId(),
+                    bfd.getEventTransferIn());
             log.info("bfd:{}", objectMapper.writeValueAsString(bfd));
 
             LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
@@ -375,14 +386,15 @@ public class AtomicLPController extends LpControllerBase {
                 "If the user does not confirm after {} hours {} minutes {} seconds , then a refund will be issued.",
                 hours, minutes, seconds);
         try {
-            executeAfter = executeAfter + 3000;  
+            executeAfter = executeAfter + 3000;
             taskSchedulerService.scheduleTask(() -> {
                 try {
                     log.info("Time's up...");
                     String cacheData = (String) redisConfig.getRedisTemplate().opsForHash().get(KEY_BUSINESS_CACHE,
                             businessFullData.getEventTransferOut().getTransferId());
                     if (cacheData == null) {
-                        log.warn("No cache data found for transferId: {}", businessFullData.getEventTransferOut().getTransferId());
+                        log.warn("No cache data found for transferId: {}",
+                                businessFullData.getEventTransferOut().getTransferId());
                         return;
                     }
                     AtomicBusinessFullData bfd = objectMapper.readValue(cacheData, AtomicBusinessFullData.class);
@@ -466,6 +478,7 @@ public class AtomicLPController extends LpControllerBase {
                     log.error("❌ error", e);
                 }
             }
+            startDoTransferInConfirm(bfd, lpBridge);
             log.info("📤 send TxOutConfirm EVENT, channel: {},",
                     lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey());
             log.info("🔗 businessHash: {}", bfdFromRelay.getPreBusiness().getHash());
@@ -477,6 +490,20 @@ public class AtomicLPController extends LpControllerBase {
         }
 
         return true;
+    }
+
+    public void startDoTransferInConfirm(AtomicBusinessFullData bfd, LPBridge lpBridge) {
+        log.info("Start submitting transfer-in confirm task, businessHash: {}", bfd.getPreBusiness().getHash());
+        exePoolService.submit(() -> {
+            try {
+                log.info("Begin executing transfer-in confirm task, businessHash: {}", bfd.getPreBusiness().getHash());
+                doTransferInConfirm(bfd, lpBridge);
+                log.info("Transfer-in confirm task completed, businessHash: {}", bfd.getPreBusiness().getHash());
+            } catch (Exception e) {
+                log.error("Exception occurred during transfer-in confirm task, businessHash: {}, error: {}",
+                        bfd.getPreBusiness().getHash(), e.getMessage(), e);
+            }
+        });
     }
 
     public void doTransferInConfirm(AtomicBusinessFullData bfd, LPBridge lpBridge) {
@@ -515,7 +542,6 @@ public class AtomicLPController extends LpControllerBase {
         try {
             log.info("RequestDoTransferIn:" + objectMapper.writeValueAsString(request));
         } catch (JsonProcessingException e) {
-            // TODO Auto-generated catch block
             e.printStackTrace();
         }
 
@@ -524,7 +550,7 @@ public class AtomicLPController extends LpControllerBase {
                 request,
                 String.class);
 
-        log.info("response message:{}", objectResponseEntity.toString());
+        log.info("response message: {}", objectResponseEntity != null ? objectResponseEntity : "null");
     }
 
     /**
@@ -607,6 +633,7 @@ public class AtomicLPController extends LpControllerBase {
             bfd.setPreBusiness(bfdFromRelay.getPreBusiness());
             bfd.getPreBusiness().setOrderAppendData((String) redisConfig.getRedisTemplate().opsForHash()
                     .get(KEY_BUSINESS_APPEND, bfd.getPreBusiness().getHash()));
+            startDoTransferInRefund(bfd, lpBridge);
             CmdEvent cmdEvent = new CmdEvent().setBusinessFullData(bfd).setCmd(CmdEvent.EVENT_TRANSFER_OUT_REFUND);
 
             redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_CACHE,
@@ -616,6 +643,7 @@ public class AtomicLPController extends LpControllerBase {
 
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);
+
         } catch (Exception e) {
             log.error("error", e);
             return false;
@@ -624,19 +652,33 @@ public class AtomicLPController extends LpControllerBase {
         return true;
     }
 
+    private void startDoTransferInRefund(AtomicBusinessFullData bfd, LPBridge lpBridge) {
+        log.info("Start submitting transfer-in refund task, businessHash: {}", bfd.getPreBusiness().getHash());
+        exePoolService.submit(() -> {
+            try {
+                log.info("Begin executing transfer-in refund task, businessHash: {}", bfd.getPreBusiness().getHash());
+                doTransferInRefund(bfd, lpBridge);
+                log.info("Transfer-in refund task completed, businessHash: {}", bfd.getPreBusiness().getHash());
+            } catch (Exception e) {
+                log.error("Exception occurred during transfer-in refund task, businessHash: {}, error: {}",
+                        bfd.getPreBusiness().getHash(), e.getMessage(), e);
+            }
+        });
+    }
+
     public void doTransferInRefund(AtomicBusinessFullData bfd, LPBridge lpBridge) {
         String businessHash = bfd.getPreBusiness().getHash();
         String redisKey = "transfer_in_refund_executed";
-        
+
         // Check if this operation has been executed before
         Boolean hasExecuted = redisConfig.getRedisTemplate().opsForHash()
                 .hasKey(redisKey, businessHash);
-        
+
         if (Boolean.TRUE.equals(hasExecuted)) {
             log.info("Transfer in refund already executed for business hash: [{}], skipping", businessHash);
             return;
         }
-    
+
         log.info("do transfer in refund businessHash: [{}]", bfd.getPreBusiness().getHash());
         log.info("tx_in info:{}", bfd.getEventTransferIn().toString());
         CommandTransferInRefund commandTransferInRefund = new CommandTransferInRefund()
@@ -653,31 +695,30 @@ public class AtomicLPController extends LpControllerBase {
                 .setEarliestRefundTime(bfd.getEventTransferOut().getEarliestRefundTime())
                 .setAgreementReachedTime(bfd.getEventTransferOut().getAgreementReachedTime())
                 .setAppendInformation(bfd.getPreBusiness().getSwapAssetInformation().getAppendInformation());
-            Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_STANDARD);
-            RequestDoTransferInRefund request = new RequestDoTransferInRefund()
-                    .setTransactionType("LOCAL_PADDING")
-                    .setCommandTransferRefund(commandTransferInRefund)
-                    .setGas(gas);
-    
-            try {
-                log.info("RequestDoTransferInRefund:" + objectMapper.writeValueAsString(request));
-            } catch (JsonProcessingException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
-            }
-    
-            String objectResponseEntity = restTemplate.postForObject(
-                    lpBridge.getDstClientUri() + "/lpnode/refund",
-                    request,
-                    String.class);
-    
-            log.info("response message:{}", objectResponseEntity.toString());
-    
-            // Store execution record with 7 days expiration 
-            redisConfig.getRedisTemplate().opsForHash().put(redisKey, businessHash, "1");
-            redisConfig.getRedisTemplate().expire(redisKey, 7, TimeUnit.DAYS);
+        Gas gas = new Gas().setGasPrice(Gas.GAS_PRICE_TYPE_STANDARD);
+        RequestDoTransferInRefund request = new RequestDoTransferInRefund()
+                .setTransactionType("LOCAL_PADDING")
+                .setCommandTransferRefund(commandTransferInRefund)
+                .setGas(gas);
+
+        try {
+            log.info("RequestDoTransferInRefund:" + objectMapper.writeValueAsString(request));
+        } catch (JsonProcessingException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+
+        String objectResponseEntity = restTemplate.postForObject(
+                lpBridge.getDstClientUri() + "/lpnode/refund",
+                request,
+                String.class);
+
+        log.info("response message:{}", objectResponseEntity.toString());
+
+        // Store execution record with 7 days expiration
+        redisConfig.getRedisTemplate().opsForHash().put(redisKey, businessHash, "1");
+        redisConfig.getRedisTemplate().expire(redisKey, 7, TimeUnit.DAYS);
     }
-    
 
     public void onEventRefund(EventTransferRefundBox eventBox) {
         try {
@@ -715,8 +756,6 @@ public class AtomicLPController extends LpControllerBase {
             log.info("bfd:" + objectMapper.writeValueAsString(bfd));
 
             // call relay
-            // LPBridge lpBridge =
-            // lpBridges.get(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName());
             LPBridge lpBridge = getBridge(bfd.getPreBusiness().getSwapAssetInformation().getBridgeName(),
                     bfd.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase().getRelayApiKey());
             CmdEvent<AtomicBusinessFullData> cmdEvent = new CmdEvent<AtomicBusinessFullData>().setBusinessFullData(bfd)

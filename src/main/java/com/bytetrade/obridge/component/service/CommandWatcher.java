@@ -219,22 +219,6 @@ public class CommandWatcher {
                             cmdEvent.getPreBusiness().getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE,
                             cmdEvent);
                     break;
-                case CmdEvent.CMD_TRANSFER_IN:
-                    CmdEvent<AtomicBusinessFullData> atomicTransferInCmdEvent = objectMapper.readValue(msg,
-                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
-                            });
-                    atomicLPController.doTransferIn(
-                            (AtomicBusinessFullData) atomicTransferInCmdEvent.getBusinessFullData(),
-                            lpBridge);
-                    break;
-                case CmdEvent.CMD_TRANSFER_IN_CONFIRM:
-                    CmdEvent<AtomicBusinessFullData> atomicTransferInConfirmCmdEvent = objectMapper.readValue(msg,
-                            new TypeReference<CmdEvent<AtomicBusinessFullData>>() {
-                            });
-                    atomicLPController.doTransferInConfirm(
-                            (AtomicBusinessFullData) atomicTransferInConfirmCmdEvent.getBusinessFullData(),
-                            lpBridge);
-                    break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:
                     CmdEvent<AtomicBusinessFullData> atomicTransferInRefundCmdEvent = objectMapper.readValue(msg,
                             new TypeReference<CmdEvent<AtomicBusinessFullData>>() {

@@ -196,6 +196,8 @@ public class CommLpController extends LpControllerBase {
      */
     public void askReplyToRelay(String cid, QuoteData quoteData, LPBridge lpBridge) {
         QuoteBase quoteBase = new QuoteBase().setBridge(lpBridge.getBridge())
+                .setErrorCode(quoteData.getErrorCode())
+                .setErrorMessage(quoteData.getErrorMessage())
                 .setPrice(quoteData.getPrice())
                 .setNativeTokenPrice(quoteData.getNativeTokenPrice())
                 .setNativeTokenMax(quoteData.getNativeTokenMax())

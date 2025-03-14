@@ -18,6 +18,10 @@ public class QuoteBase {
 
     String lpBridgeAddress;
 
+
+    int errorCode;
+
+    String errorMessage;
     // hex
     String price;
 
