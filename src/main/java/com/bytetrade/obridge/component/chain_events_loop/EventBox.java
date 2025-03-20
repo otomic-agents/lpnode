@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component.event;
+package com.bytetrade.obridge.component.chain_events_loop;
 
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -13,11 +13,10 @@ public class EventBox {
     private String taskId;
     private String createdAt;
 
-    // 默认构造函数
     public EventBox() {
     }
 
-    // Getters 和 Setters
+    // Getters  Setters
     public String get_id() {
         return _id;
     }

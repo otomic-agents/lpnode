@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
-import com.bytetrade.obridge.component.SingleSwapLpController;
+import com.bytetrade.obridge.component.controller.SingleSwapLpController;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 

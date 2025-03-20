@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.controller;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -25,10 +25,14 @@ import com.bytetrade.obridge.bean.QuoteBase;
 import com.bytetrade.obridge.bean.QuoteData;
 import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 import com.bytetrade.obridge.bean.RealtimeQuote;
+import com.bytetrade.obridge.component.SignDataFactory;
+import com.bytetrade.obridge.component.client.AtomicRestClient;
+import com.bytetrade.obridge.component.client.CommRestClient;
 import com.bytetrade.obridge.component.client.request.AbstractSignMessage;
 import com.bytetrade.obridge.component.client.request.SignMessageFactory;
-import com.bytetrade.obridge.component.service.CommandWatcher;
+import com.bytetrade.obridge.component.redis_message_watcher.CommandWatcher;
 import com.bytetrade.obridge.component.service.LockedBusinessService;
+import com.bytetrade.obridge.component.utils.AddressHelper;
 import com.bytetrade.obridge.db.redis.RedisConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -81,7 +85,7 @@ public class CommLpController extends LpControllerBase {
                 // Normal exit path - init completed successfully
             }
         });
-        
+
         // redisConfig.getRedisTemplate().delete(KEY_CONFIG_CACHE);
         String configStr = "";
         try {
@@ -205,12 +209,12 @@ public class CommLpController extends LpControllerBase {
                 .setCapacity(quoteData.getCapacity())
                 .setQuoteHash(quoteData.getQuoteHash())
                 .setLpNodeUri(selfUri)
-                
+
                 .setLpBridgeAddress(lpBridge.getLpReceiverAddress());
-        if (quoteBase.getBridge().getSrcChainId().equals(quoteBase.getBridge().getDstChainId())){
+        if (quoteBase.getBridge().getSrcChainId().equals(quoteBase.getBridge().getDstChainId())) {
             quoteBase.setCapabilities("single_swap");
         }
-        
+
         log.info("capabilities set value: {}", quoteBase.getCapabilities());
 
         RealtimeQuote realtimeQuote = new RealtimeQuote()
@@ -286,7 +290,9 @@ public class CommLpController extends LpControllerBase {
                 Thread.currentThread().interrupt();
                 log.error("callbackEvent check Loop interrupt" + e.toString());
             }
-            String callbackKey = preBusiness.getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE;
+            String quoteHash = preBusiness.getSwapAssetInformation().getQuote().getQuoteBase().getQuoteHash();
+            String businessHash = preBusiness.getHash();
+            String callbackKey = quoteHash + "_" + CmdEvent.CALLBACK_LOCK_QUOTE;
             log.info("Check Lock response message:{} ", callbackKey);
             callbackEvent = callbackEventMap.get(callbackKey);
         }
@@ -327,12 +333,15 @@ public class CommLpController extends LpControllerBase {
         log.info("Business Id Source str: " + bidIdString.toString());
 
         String businessHash = Hash.sha3String(bidIdString);
+        log.info("Generated business ID: {} 🔢",businessHash);
         resultBusiness.setHash(businessHash);
         // Persist to Redis with 12-hour expiration
         redisConfig.getRedisTemplate().opsForValue().set(KEY_LOCKED_BUSINESS + ":" + businessHash, "true", 12,
                 TimeUnit.HOURS);
         lockedBusinessService.addLockedBusiness(resultBusiness.getHash());
+        
         log.info("businessHash:" + resultBusiness.getHash().toString());
+
         log.info("Add business in cache 【lockedBusinessList】:" + resultBusiness.getHash());
 
         redisConfig.getRedisTemplate().opsForHash().put(KEY_BUSINESS_APPEND, resultBusiness.getHash(),

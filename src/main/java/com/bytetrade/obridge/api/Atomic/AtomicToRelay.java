@@ -10,7 +10,8 @@ import org.springframework.web.bind.annotation.RestController;
 import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.bean.AskCmd;
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
-import com.bytetrade.obridge.component.AtomicLPController;
+import com.bytetrade.obridge.component.controller.AtomicLPController;
+
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j

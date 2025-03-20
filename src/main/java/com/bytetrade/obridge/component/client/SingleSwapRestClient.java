@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.client;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;

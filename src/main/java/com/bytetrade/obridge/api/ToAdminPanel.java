@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.bean.LPBridge;
-import com.bytetrade.obridge.component.CommLpController;
+import com.bytetrade.obridge.component.controller.CommLpController;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.bind.annotation.GetMapping;

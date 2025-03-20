@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.utils;
 
 import org.bitcoinj.core.Base58;
 import java.math.BigInteger;

@@ -4,6 +4,8 @@ import org.quartz.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.bytetrade.obridge.component.utils.RunnableJob;
+
 import java.util.Date;
 
 @Service

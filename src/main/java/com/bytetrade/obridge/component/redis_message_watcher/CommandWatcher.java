@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component.service;
+package com.bytetrade.obridge.component.redis_message_watcher;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -18,15 +18,14 @@ import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.Subscription;
 import org.springframework.stereotype.Service;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.gson.Gson;
 
 import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.core.type.TypeReference;
 
 import com.bytetrade.obridge.bean.LPBridge;
-import com.bytetrade.obridge.component.AtomicLPController;
-import com.bytetrade.obridge.component.CommLpController;
-import com.bytetrade.obridge.component.SingleSwapLpController;
+import com.bytetrade.obridge.component.controller.AtomicLPController;
+import com.bytetrade.obridge.component.controller.CommLpController;
+import com.bytetrade.obridge.component.controller.SingleSwapLpController;
 import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.db.redis.RedisConfig;
@@ -215,8 +214,11 @@ public class CommandWatcher {
                     commLpController.askReplyToRelay(cmdEvent.getCid(), cmdEvent.getQuoteData(), lpBridge);
                     break;
                 case CmdEvent.CALLBACK_LOCK_QUOTE:
+                    String callbackKey = cmdEvent.getPreBusiness().getSwapAssetInformation().getQuote().getQuoteBase()
+                            .getQuoteHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE;
+                    log.info("🤖 create new Quote Callback key:{}", callbackKey);
                     commLpController.newQuoteCallback(
-                            cmdEvent.getPreBusiness().getHash() + "_" + CmdEvent.CALLBACK_LOCK_QUOTE,
+                            callbackKey,
                             cmdEvent);
                     break;
                 case CmdEvent.CMD_TRANSFER_IN_REFUND:

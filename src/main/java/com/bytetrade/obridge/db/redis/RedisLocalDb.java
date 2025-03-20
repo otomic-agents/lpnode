@@ -26,6 +26,8 @@ public class RedisLocalDb {
     private String password;
 
     private RedisTemplate<String, Object> redisTemplate;
+    private RedisTemplate<String, String> stringRedisTemplate;
+
 
     @PostConstruct
     public void init() {
@@ -38,9 +40,15 @@ public class RedisLocalDb {
             redisTemplate = createRedisTemplate(connectionFactory);
             redisTemplate.afterPropertiesSet(); // Initialize RedisTemplate
 
+            stringRedisTemplate = createStringRedisTemplate(connectionFactory);
+            stringRedisTemplate.afterPropertiesSet(); // Initialize StringRedisTemplate
+            
             // Test connection
             redisTemplate.getConnectionFactory().getConnection().ping();
             log.info("Redis connection established successfully");
+
+
+            
         } catch (Exception e) {
             log.error("Failed to initialize RedisLocalDb", e);
             throw new RuntimeException("Redis initialization failed", e);
@@ -71,8 +79,23 @@ public class RedisLocalDb {
 
         return template;
     }
+    private RedisTemplate<String, String> createStringRedisTemplate(RedisConnectionFactory connectionFactory) {
+        RedisTemplate<String, String> template = new RedisTemplate<>();
+        template.setConnectionFactory(connectionFactory);
+
+        StringRedisSerializer stringSerializer = new StringRedisSerializer();
+        template.setKeySerializer(stringSerializer);
+        template.setValueSerializer(stringSerializer);
+        template.setHashKeySerializer(stringSerializer);
+        template.setHashValueSerializer(stringSerializer);
+
+        return template;
+    }
 
     public RedisTemplate<String, Object> get() {
         return redisTemplate;
+    }
+    public RedisTemplate<String, String> getStr() {
+        return stringRedisTemplate;
     }
 }

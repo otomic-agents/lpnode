@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.client;
 
 import java.time.Duration;
 import java.util.List;
@@ -74,7 +74,12 @@ public class CommRestClient {
                     return Mono.error(new RuntimeException("request error"));
                 })
                 .bodyToMono(String.class);
-        String resultText = result.block();
-        return resultText;
+        try {
+            String resultText = result.block();
+            return resultText;
+        } catch (RuntimeException e) {
+            // Just log the error message without the stack trace
+            return "Error: " + e.getMessage();
+        }
     }
 }

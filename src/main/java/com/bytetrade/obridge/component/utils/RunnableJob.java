@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.utils;
 
 import org.quartz.Job;
 import org.quartz.JobExecutionContext;

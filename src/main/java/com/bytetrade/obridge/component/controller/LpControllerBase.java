@@ -1,16 +1,19 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.controller;
 
 import java.math.BigInteger;
 import java.util.Map;
 
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.bytetrade.obridge.bean.ExtendedAtomicSwapAsset;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.PreBusiness;
+import com.bytetrade.obridge.bean.SwapAssetInformation;
 import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.component.service.LPBridgeService;
-
+import com.bytetrade.obridge.component.utils.AddressHelper;
+import com.alibaba.fastjson.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -75,6 +78,80 @@ public class LpControllerBase {
     }
 
     protected String getBusinessId(PreBusiness resultBusiness, LPBridge lpBridge) {
+        SwapAssetInformation swapAsset = resultBusiness.getSwapAssetInformation();
+
+        JSONObject bidComponents = new JSONObject();
+
+        bidComponents.put("agreementReachedTime", swapAsset.getAgreementReachedTime().toString());
+        bidComponents.put("srcChainId", lpBridge.getBridge().getSrcChainId().toString());
+        bidComponents.put("srcAddress", AddressHelper.getDecimalAddress(
+                swapAsset.getSender(),
+                lpBridge.getBridge().getSrcChainId()));
+        bidComponents.put("srcToken", lpBridge.getBridge().getSrcToken().toString());
+        bidComponents.put("dstChainId", lpBridge.getBridge().getDstChainId().toString());
+        bidComponents.put("dstAddress", new BigInteger(swapAsset.getDstAddress().substring(2), 16).toString());
+        bidComponents.put("dstToken", lpBridge.getBridge().getDstToken().toString());
+        bidComponents.put("srcAmount", swapAsset.getAmount().toString());
+        bidComponents.put("dstAmount", swapAsset.getDstAmount().toString());
+        bidComponents.put("dstNativeAmount", swapAsset.getDstNativeAmount().toString());
+        bidComponents.put("requestor", swapAsset.getRequestor().toString());
+        bidComponents.put("lpId", lpBridge.getLpId());
+        bidComponents.put("userSign", swapAsset.getUserSign().toString());
+
+        bidComponents.put("expectedSingleStepTime", "0");
+        bidComponents.put("tolerantSingleStepTime", "0");
+        bidComponents.put("earliestRefundTime", "0");
+        bidComponents.put("lpSign", "");
+
+        if (swapAsset instanceof ExtendedAtomicSwapAsset) {
+            ExtendedAtomicSwapAsset atomicSwapAsset = (ExtendedAtomicSwapAsset) swapAsset;
+            if (atomicSwapAsset.getExpectedSingleStepTime() != null) {
+                bidComponents.put("expectedSingleStepTime", atomicSwapAsset.getExpectedSingleStepTime().toString());
+            }
+            if (atomicSwapAsset.getTolerantSingleStepTime() != null) {
+                bidComponents.put("tolerantSingleStepTime", atomicSwapAsset.getTolerantSingleStepTime().toString());
+            }
+            if (atomicSwapAsset.getEarliestRefundTime() != null) {
+                bidComponents.put("earliestRefundTime", atomicSwapAsset.getEarliestRefundTime().toString());
+            }
+        } else if (swapAsset instanceof ExtendedSingleSwapAsset) {
+            ExtendedSingleSwapAsset singleSwapAsset = (ExtendedSingleSwapAsset) swapAsset;
+            if (singleSwapAsset.getExpectedSingleStepTime() != null) {
+                bidComponents.put("expectedSingleStepTime", singleSwapAsset.getExpectedSingleStepTime().toString());
+            }
+        }
+
+        if (swapAsset.getLpSign() != null) {
+            bidComponents.put("lpSign", swapAsset.getLpSign().toString());
+        }
+
+        log.info("Business ID components: {}", bidComponents.toJSONString());
+
+        StringBuilder contractOrderBidString = new StringBuilder()
+                .append(bidComponents.getString("agreementReachedTime"))
+                .append(bidComponents.getString("srcChainId"))
+                .append(bidComponents.getString("srcAddress"))
+                .append(bidComponents.getString("srcToken"))
+                .append(bidComponents.getString("dstChainId"))
+                .append(bidComponents.getString("dstAddress"))
+                .append(bidComponents.getString("dstToken"))
+                .append(bidComponents.getString("srcAmount"))
+                .append(bidComponents.getString("dstAmount"))
+                .append(bidComponents.getString("dstNativeAmount"))
+                .append(bidComponents.getString("requestor"))
+                .append(bidComponents.getString("lpId"))
+                .append(bidComponents.getString("expectedSingleStepTime"))
+                .append(bidComponents.getString("tolerantSingleStepTime"))
+                .append(bidComponents.getString("earliestRefundTime"))
+                .append(bidComponents.getString("userSign"))
+                .append(bidComponents.getString("lpSign"));
+
+       
+
+        return contractOrderBidString.toString();
+    }
+
+    protected String getBusinessId_Pre(PreBusiness resultBusiness, LPBridge lpBridge) {
         if ("ATOMIC".equals(resultBusiness.getSwapAssetInformation().getSwapType())) {
             ExtendedAtomicSwapAsset swapAsset = (ExtendedAtomicSwapAsset) resultBusiness.getSwapAssetInformation();
             return resultBusiness.getSwapAssetInformation().getAgreementReachedTime().toString() +

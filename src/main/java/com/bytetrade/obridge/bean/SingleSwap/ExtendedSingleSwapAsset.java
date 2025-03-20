@@ -14,7 +14,7 @@ import com.fasterxml.jackson.databind.annotation.JsonNaming;
 public class ExtendedSingleSwapAsset extends SwapAssetInformation {
     public ExtendedSingleSwapAsset() {
         super();
-        setSwapType("SINGLECHAIN"); // 在构造函数中设置默认值
+        setSwapType("SINGLECHAIN"); 
     }
 
     private Long expectedSingleStepTime;

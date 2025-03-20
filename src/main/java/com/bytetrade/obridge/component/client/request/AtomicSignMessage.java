@@ -25,8 +25,8 @@ public class AtomicSignMessage extends AbstractSignMessage {
     @Override
     public String generateSign(String baseUri, Integer chainId) {
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        log.info("signData JSON representation:\n{}", gson.toJson(signData)); // 打印 JSON 格式
-        log.info("signData actual class: {}", signData.getClass().getName()); // 打印实际类型
+        log.info("signData JSON representation:\n{}", gson.toJson(signData)); 
+        log.info("signData actual class: {}", signData.getClass().getName()); 
         if (!(signData instanceof AtomicSignData)) {
             throw new IllegalArgumentException("Invalid signData type for AtomicSignData");
         }

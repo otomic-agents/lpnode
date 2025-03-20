@@ -14,7 +14,7 @@ import com.bytetrade.obridge.base.Result;
 import com.bytetrade.obridge.bean.Business;
 import com.bytetrade.obridge.bean.PreBusiness;
 import com.bytetrade.obridge.bean.QuoteRemoveInfo;
-import com.bytetrade.obridge.component.CommLpController;
+import com.bytetrade.obridge.component.controller.CommLpController;
 
 @Slf4j
 @RestController
