@@ -84,12 +84,10 @@ public class LpControllerBase {
 
         bidComponents.put("agreementReachedTime", swapAsset.getAgreementReachedTime().toString());
         bidComponents.put("srcChainId", lpBridge.getBridge().getSrcChainId().toString());
-        bidComponents.put("srcAddress", AddressHelper.getDecimalAddress(
-                swapAsset.getSender(),
-                lpBridge.getBridge().getSrcChainId()));
+        bidComponents.put("srcAddress", swapAsset.getQuote().getQuoteBase().getLpBridgeAddress());
         bidComponents.put("srcToken", lpBridge.getBridge().getSrcToken().toString());
         bidComponents.put("dstChainId", lpBridge.getBridge().getDstChainId().toString());
-        bidComponents.put("dstAddress", new BigInteger(swapAsset.getDstAddress().substring(2), 16).toString());
+        bidComponents.put("dstAddress", swapAsset.getDstAddress());
         bidComponents.put("dstToken", lpBridge.getBridge().getDstToken().toString());
         bidComponents.put("srcAmount", swapAsset.getAmount().toString());
         bidComponents.put("dstAmount", swapAsset.getDstAmount().toString());
