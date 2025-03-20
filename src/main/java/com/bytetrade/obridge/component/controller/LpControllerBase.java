@@ -84,10 +84,14 @@ public class LpControllerBase {
 
         bidComponents.put("agreementReachedTime", swapAsset.getAgreementReachedTime().toString());
         bidComponents.put("srcChainId", lpBridge.getBridge().getSrcChainId().toString());
-        bidComponents.put("srcAddress", swapAsset.getQuote().getQuoteBase().getLpBridgeAddress());
+        bidComponents.put("srcAddress", AddressHelper.getDecimalAddress(
+                swapAsset.getQuote().getQuoteBase().getLpBridgeAddress(),
+                swapAsset.getQuote().getQuoteBase().getBridge().getSrcChainId()));
         bidComponents.put("srcToken", lpBridge.getBridge().getSrcToken().toString());
         bidComponents.put("dstChainId", lpBridge.getBridge().getDstChainId().toString());
-        bidComponents.put("dstAddress", swapAsset.getDstAddress());
+        bidComponents.put("dstAddress", AddressHelper.getDecimalAddress(
+                swapAsset.getDstAddress(),
+                swapAsset.getQuote().getQuoteBase().getBridge().getDstChainId()));
         bidComponents.put("dstToken", lpBridge.getBridge().getDstToken().toString());
         bidComponents.put("srcAmount", swapAsset.getAmount().toString());
         bidComponents.put("dstAmount", swapAsset.getDstAmount().toString());
@@ -143,8 +147,6 @@ public class LpControllerBase {
                 .append(bidComponents.getString("earliestRefundTime"))
                 .append(bidComponents.getString("userSign"))
                 .append(bidComponents.getString("lpSign"));
-
-       
 
         return contractOrderBidString.toString();
     }
