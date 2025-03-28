@@ -39,6 +39,7 @@ import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.BusinessEvent;
 import com.bytetrade.obridge.bean.BusinessEventItem;
 import com.bytetrade.obridge.bean.LPBridge;
+import com.bytetrade.obridge.bean.SwapAssetInformation;
 import com.bytetrade.obridge.bean.CmdEvent;
 
 import com.bytetrade.obridge.db.redis.RedisConfig;
@@ -495,10 +496,50 @@ public class AtomicLPController extends LpControllerBase {
         return true;
     }
 
+    /**
+     * Start the transfer-in confirm ation process.
+     * 
+     * IMPORTANT NOTE ON TIMING WINDOW:
+     * When users skip confirmOut and directly execute confirmIn, there's a timing
+     * consideration:
+     * 1. Relay might execute confirmOut within its available time window
+     * 2. When LP receives the confirmOut event again, it might process confirm_in
+     * twice
+     * 3. To prevent duplicate processing, we only execute confirm_in within LP's
+     * designated time window
+     * 
+     * This method ensures the confirm_in operation only happens within LP's valid
+     * time frame
+     * to avoid potential duplicate transactions and maintain consistency.
+     *
+     * @param bfd      AtomicBusinessFullData containing the business information
+     * @param lpBridge Bridge interface for LP operations
+     */
     public void startDoTransferInConfirm(AtomicBusinessFullData bfd, LPBridge lpBridge) {
         log.info("Start submitting transfer-in confirm task, businessHash: {}", bfd.getPreBusiness().getHash());
         exePoolService.submit(() -> {
+            if (!bfd.getPreBusiness().getSwapAssetInformation().getSwapType().equals("ATOMIC")) {
+                return;
+            }
+            ExtendedAtomicSwapAsset swapAsset = (ExtendedAtomicSwapAsset) bfd.getPreBusiness()
+                    .getSwapAssetInformation();
+            long agreementReachedTime = bfd.getPreBusiness().getSwapAssetInformation().getAgreementReachedTime();
+            long expectedSingleStepTime = 0;
+            long tolerantSingleStepTime = 0;
+            if (swapAsset instanceof ExtendedAtomicSwapAsset) {
+                expectedSingleStepTime = swapAsset.getExpectedSingleStepTime();
+                tolerantSingleStepTime = swapAsset.getTolerantSingleStepTime();
+            }
+            long currentTimeSeconds = System.currentTimeMillis() / 1000;
+            long timeEndLine = agreementReachedTime + expectedSingleStepTime * 3 + tolerantSingleStepTime * 1 - 30;
+            if (currentTimeSeconds > timeEndLine) {
+                log.info("Current time {} has exceeded the deadline {}. Transaction expired.",
+                        currentTimeSeconds, timeEndLine);
+                return;
+            }
             try {
+                bfd.getPreBusiness().getSwapAssetInformation().getAgreementReachedTime();
+
                 log.info("Begin executing transfer-in confirm task, businessHash: {}", bfd.getPreBusiness().getHash());
                 doTransferInConfirm(bfd, lpBridge);
                 log.info("Transfer-in confirm task completed, businessHash: {}", bfd.getPreBusiness().getHash());

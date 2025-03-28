@@ -22,6 +22,8 @@ public class CmdEvent<T> {
     public static final String EVENT_LOCK_QUOTE = "EVENT_LOCK_QUOTE";
     public static final String CALLBACK_LOCK_QUOTE = "CALLBACK_LOCK_QUOTE";
 
+    public static final String EVENT_LOCKED_QUOTE  = "EVENT_LOCKED_QUOTE";
+
     public static final String EVENT_TRANSFER_OUT = "EVENT_TRANSFER_OUT";
     public static final String CMD_TRANSFER_IN = "CMD_TRANSFER_IN";
 

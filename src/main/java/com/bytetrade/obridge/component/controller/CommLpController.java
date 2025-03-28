@@ -16,6 +16,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
 import org.web3j.crypto.Hash;
 
+import com.bytetrade.obridge.bean.AtomicBusinessFullData;
 import com.bytetrade.obridge.bean.CmdEvent;
 import com.bytetrade.obridge.bean.LPBridge;
 import com.bytetrade.obridge.bean.LPConfigCache;
@@ -25,6 +26,7 @@ import com.bytetrade.obridge.bean.QuoteBase;
 import com.bytetrade.obridge.bean.QuoteData;
 import com.bytetrade.obridge.bean.QuoteRemoveInfo;
 import com.bytetrade.obridge.bean.RealtimeQuote;
+import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.SignDataFactory;
 import com.bytetrade.obridge.component.client.AtomicRestClient;
 import com.bytetrade.obridge.component.client.CommRestClient;
@@ -335,6 +337,23 @@ public class CommLpController extends LpControllerBase {
         String businessHash = Hash.sha3String(bidIdString);
         log.info("Generated business ID: {} 🔢",businessHash);
         resultBusiness.setHash(businessHash);
+        preBusiness.setHash(businessHash);
+        CmdEvent<?> lockedEvent;
+        if (preBusiness.getSwapAssetInformation().getSwapType().equals("SINGLECHAIN")) {
+            lockedEvent = new CmdEvent<SingleSwapBusinessFullData>().setPreBusiness(preBusiness)
+                    .setCmd(CmdEvent.EVENT_LOCKED_QUOTE);
+        } else {
+            lockedEvent = new CmdEvent<AtomicBusinessFullData>().setPreBusiness(preBusiness)
+                    .setCmd(CmdEvent.EVENT_LOCKED_QUOTE);
+        }
+        try {
+            String channel = lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey();
+            log.info("send LOCK message To {}", channel);
+            redisConfig.getRedisTemplate().convertAndSend(channel,
+                    lockedEvent);
+        } catch (Exception e) {
+            log.error("error", e);
+        }
         // Persist to Redis with 12-hour expiration
         redisConfig.getRedisTemplate().opsForValue().set(KEY_LOCKED_BUSINESS + ":" + businessHash, "true", 12,
                 TimeUnit.HOURS);
