@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class HealthReport {
     private static final int INTERVAL_TIME = Integer.parseInt(System.getenv().getOrDefault(
-        "HEALTH_INTERVAL_TIME", "60000")); 
+        "HEALTH_INTERVAL_TIME", "30000")); 
     // Get METRICS_ENDPOINT from environment variable with a default value
     private static final String METRICS_ENDPOINT = System.getenv().getOrDefault(
             "METRICS_ENDPOINT",
