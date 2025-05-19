@@ -18,6 +18,7 @@ import com.bytetrade.obridge.bean.SingleSwap.EventRefundSwapBox;
 import com.bytetrade.obridge.bean.SingleSwap.ExtendedSingleSwapAsset;
 import com.bytetrade.obridge.bean.SingleSwap.SingleSwapBusinessFullData;
 import com.bytetrade.obridge.component.ChainSetting;
+import com.bytetrade.obridge.component.HealthReport;
 import com.bytetrade.obridge.component.client.SingleSwapRestClient;
 import com.bytetrade.obridge.component.client.request.CommandConfirmSwap;
 import com.bytetrade.obridge.component.client.request.Gas;
@@ -55,6 +56,9 @@ public class SingleSwapLpController extends LpControllerBase {
 
     @Autowired
     InitSwapEventService initSwapEventService;
+
+    @Autowired
+    HealthReport healthReport;
 
     public Boolean onRelayInitSwap(SingleSwapBusinessFullData bfd) {
         exePoolService.submit(() -> {
@@ -321,6 +325,7 @@ public class SingleSwapLpController extends LpControllerBase {
                     e.getMessage(),
                     e);
         } catch (Exception e) {
+            healthReport.reportError("onEventConfirmSwap error:" + e.getMessage(), "lpnode:error:report:event_process");
             log.error("💥 Unexpected error while processing event - TransferId: {} - Error: {}",
                     eventBox.getEventParse().getTransferId(),
                     e.getMessage(),
@@ -369,6 +374,7 @@ public class SingleSwapLpController extends LpControllerBase {
                     eventBox.getEventParse().getTransferId());
 
         } catch (Exception e) {
+            healthReport.reportError("onEventRefundSwap error:" + e.getMessage(), "lpnode:error:report:event_process");
             // Log the exception with detailed information
             log.error("❌ Error processing refund swap event - TransferId: {}, Error: {}",
                     eventBox.getEventParse().getTransferId(), e.getMessage(), e);

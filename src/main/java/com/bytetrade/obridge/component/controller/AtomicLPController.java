@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 import com.bytetrade.obridge.component.client.request.CommandTransferInConfirm;
 import com.bytetrade.obridge.component.ChainSetting;
+import com.bytetrade.obridge.component.HealthReport;
 import com.bytetrade.obridge.component.TaskSchedulerService;
 import com.bytetrade.obridge.component.client.AtomicRestClient;
 import com.bytetrade.obridge.component.client.request.CommandTransferIn;
@@ -82,6 +83,9 @@ public class AtomicLPController extends LpControllerBase {
 
     @Autowired
     LockedBusinessService lockedBusinessService;
+
+    @Autowired
+    HealthReport healthReport;
 
     List<String> transferOutIdList = new CopyOnWriteArrayList<String>(); // new ArrayList<String>();
 
@@ -212,6 +216,8 @@ public class AtomicLPController extends LpControllerBase {
 
                 return true;
             } catch (Exception e) {
+                healthReport.reportError("onRelayMessageTransferOut error:" + e.getMessage(),
+                        "lpnode:error:report:relay_event_process");
                 log.error("error", e);
                 return false;
             }
@@ -228,6 +234,7 @@ public class AtomicLPController extends LpControllerBase {
                 doTransferIn(bfd, lpBridge);
                 log.info("Transfer-in task completed, businessHash: {}", bfd.getPreBusiness().getHash());
             } catch (Exception e) {
+                healthReport.reportError("do TransferIn error:" + e.getMessage(), "lpnode:error:report:action");
                 log.error("Exception occurred during transfer-in task, businessHash: {}, error: {}",
                         bfd.getPreBusiness().getHash(), e.getMessage(), e);
             }
@@ -351,6 +358,7 @@ public class AtomicLPController extends LpControllerBase {
             log.info("response message:{}", objectResponseEntity);
         } catch (Exception e) {
             log.error("error", e);
+            healthReport.reportError("onEventTransferIn error:" + e.getMessage(), "lpnode:error:report:event_process");
         }
     }
 
@@ -419,7 +427,9 @@ public class AtomicLPController extends LpControllerBase {
                     }
                     log.info("user confirm out all right");
                 } catch (Exception e) {
-                    log.error("process user confirm timeoutt error:{}", e.getMessage());
+                    healthReport.reportError("Error processing user confirmation timeout: " + e.getMessage(),
+                            "lpnode:error:report:relay_event_process");
+                    log.error("Error processing user confirmation timeout: {}", e.getMessage());
                 }
                 return;
             }, executeAfter);
@@ -489,6 +499,8 @@ public class AtomicLPController extends LpControllerBase {
             redisConfig.getRedisTemplate().convertAndSend(lpBridge.getMsmqName() + "_" + lpBridge.getRelayApiKey(),
                     cmdEvent);
         } catch (Exception e) {
+            healthReport.reportError("onRelayTransferOutConfirm error:" + e.getMessage(),
+                    "lpnode:error:report:relay_event_process");
             log.error("error", e);
             return false;
         }
@@ -546,6 +558,7 @@ public class AtomicLPController extends LpControllerBase {
             } catch (Exception e) {
                 log.error("Exception occurred during transfer-in confirm task, businessHash: {}, error: {}",
                         bfd.getPreBusiness().getHash(), e.getMessage(), e);
+                healthReport.reportError("doTransferInConfirm error:" + e.getMessage(), "lpnode:error:report:action");
             }
         });
     }
@@ -659,6 +672,7 @@ public class AtomicLPController extends LpControllerBase {
 
             log.info("response message:{}", objectResponseEntity.toString());
         } catch (Exception e) {
+            healthReport.reportError("onConfirm error:" + e.getMessage(), "lpnode:error:report:event_process");
             log.error("error", e);
             return;
         }
@@ -811,6 +825,7 @@ public class AtomicLPController extends LpControllerBase {
 
             log.info("response message:{}", objectResponseEntity.toString());
         } catch (Exception e) {
+            healthReport.reportError("onEventRefund error:" + e.getMessage(), "lpnode:error:report:event_process");
             log.error("error", e);
             return;
         }

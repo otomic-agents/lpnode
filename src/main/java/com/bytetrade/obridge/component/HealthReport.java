@@ -18,7 +18,7 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class HealthReport {
     private static final int INTERVAL_TIME = Integer.parseInt(System.getenv().getOrDefault(
-        "HEALTH_INTERVAL_TIME", "30000")); 
+            "HEALTH_INTERVAL_TIME", "30000"));
     // Get METRICS_ENDPOINT from environment variable with a default value
     private static final String METRICS_ENDPOINT = System.getenv().getOrDefault(
             "METRICS_ENDPOINT",
@@ -142,5 +142,76 @@ public class HealthReport {
             log.error("Unexpected error while sending metric", e);
             return false;
         }
+    }
+
+    /**
+     * Reports an error via metrics with an optional error key.
+     * 
+     * @param errorMessage The error message to report
+     * @param errorKey     Optional error key to replace the default key in the
+     *                     metric name (can be null or empty)
+     */
+    public void reportError(String errorMessage, String errorKey) {
+        // Quick check - if METRICS_ENDPOINT is empty, log and return immediately
+        if (METRICS_ENDPOINT.isEmpty()) {
+            log.info(
+                    "METRICS_ENDPOINT environment variable is not set or empty. Error reporting via metrics is disabled. Error details: {}",
+                    errorMessage);
+            return;
+        }
+
+        // Use exePoolService to execute the error reporting task asynchronously
+        exePoolService.submit(() -> {
+            try {
+                if (INSTANCE_NAME.isEmpty()) {
+                    log.warn(
+                            "INSTANCE_NAME environment variable is not set or empty. The 'instance' label in the error metric will be empty. Error details: {}",
+                            errorMessage);
+                }
+
+                // Determine the metric name based on errorKey
+                String metricName = "lpnode:error:report:";
+                metricName += (errorKey != null && !errorKey.isEmpty()) ? errorKey : "default";
+
+                log.info("Reporting error via metric: {} (metric name: {})", errorMessage, metricName);
+                JSONObject metric = new JSONObject();
+
+                // Set required metric fields
+                metric.put("name", metricName);
+                metric.put("type", "onceNotice");
+
+                JSONObject labels = new JSONObject();
+                labels.put("instance", INSTANCE_NAME);
+                labels.put("errorMessage", errorMessage);
+                metric.put("labels", labels);
+
+                // Send the metric
+                boolean success = sendMetric(metric);
+                if (success) {
+                    log.info(
+                            "Successfully sent error metric (type: onceNotice) to metrics-hub-service. Error reported: {}",
+                            errorMessage);
+                } else {
+                    log.warn("Failed to send error metric (type: onceNotice) to metrics-hub-service. Error was: {}",
+                            errorMessage);
+                }
+            } catch (Exception e) {
+                // Catch all possible exceptions to ensure the async task doesn't terminate due
+                // to unhandled exceptions
+                log.error("Exception occurred while trying to send error metric (type: onceNotice). Error was: {}",
+                        errorMessage, e);
+            }
+        });
+
+        // Method returns immediately without waiting for the metric to be sent
+    }
+
+    /**
+     * Reports an error via metrics using the default error key.
+     * 
+     * @param errorMessage The error message to report
+     */
+    public void reportError(String errorMessage) {
+        reportError(errorMessage, null);
     }
 }
