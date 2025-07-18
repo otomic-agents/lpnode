@@ -66,9 +66,9 @@ public class RedisConfig {
 		RedisTemplate<String, String> redisTemplateObject = new RedisTemplate<String, String>();
 
 		JedisConnectionFactory jedisConnectionFactory = redisConnectionFactory(jedisPoolConfig(), dbIndex);
-		// JedisPool pool = new JedisPool(jedisConnectionFactory.getPoolConfig(), jedisConnectionFactory.getHostName(), jedisConnectionFactory.getPort());
-		
-		
+		// JedisPool pool = new JedisPool(jedisConnectionFactory.getPoolConfig(),
+		// jedisConnectionFactory.getHostName(), jedisConnectionFactory.getPort());
+
 		redisTemplateObject.setConnectionFactory(jedisConnectionFactory);
 		setSerializer(redisTemplateObject);
 		redisTemplateObject.afterPropertiesSet();
@@ -87,7 +87,6 @@ public class RedisConfig {
 		poolConfig.setNumTestsPerEvictionRun(maxIdl);
 		poolConfig.setTimeBetweenEvictionRunsMillis(60000);
 		poolConfig.setBlockWhenExhausted(true);
-		
 
 		poolConfig.setMaxWaitMillis(10000);
 
@@ -104,9 +103,9 @@ public class RedisConfig {
 		redisStandaloneConfiguration.setPort(port);
 
 		JedisClientConfiguration.JedisPoolingClientConfigurationBuilder jpcb = (JedisClientConfiguration.JedisPoolingClientConfigurationBuilder) JedisClientConfiguration
-		// .usePooling()		
-		.builder();
-		
+				// .usePooling()
+				.builder();
+
 		jpcb.poolConfig(jedisPoolConfig);
 		JedisClientConfiguration jedisClientConfiguration = jpcb.build();
 
@@ -133,34 +132,35 @@ public class RedisConfig {
 
 	@Scheduled(fixedRate = 5000)
 	public void sendPingCommand() {
-		log.info("sendPingCommand");
+		// log.info("sendPingCommand");
 		sendPingToAllConnections(redisTemplateMap);
 	}
 
 	public void sendPingToAllConnections(Map<Integer, RedisTemplate<String, String>> redisTemplateMap) {
-        for (Map.Entry<Integer, RedisTemplate<String, String>> entry : redisTemplateMap.entrySet()) {
-            RedisTemplate<String, String> redisTemplate = entry.getValue();
+		for (Map.Entry<Integer, RedisTemplate<String, String>> entry : redisTemplateMap.entrySet()) {
+			RedisTemplate<String, String> redisTemplate = entry.getValue();
 
-			JedisConnectionFactory jedisConnectionFactory = (JedisConnectionFactory) redisTemplate.getConnectionFactory();
-			log.info("UsePool:" + jedisConnectionFactory.getUsePool());
-			
-            RedisConnection redisConnection = jedisConnectionFactory.getConnection();
+			JedisConnectionFactory jedisConnectionFactory = (JedisConnectionFactory) redisTemplate
+					.getConnectionFactory();
+			// log.info("UsePool:" + jedisConnectionFactory.getUsePool());
+
+			RedisConnection redisConnection = jedisConnectionFactory.getConnection();
 			String channel = "SYSTEM_PING_CHANNEL";
-			String pingMessage= "{\"cmd\":\"ping\",\"message\":\"0\"}";
+			String pingMessage = "{\"cmd\":\"ping\",\"message\":\"0\"}";
 			redisConnection.publish(channel.getBytes(), pingMessage.getBytes());
-            if (redisConnection instanceof JedisConnection) {
-				
-                Jedis jedis = (Jedis) ((JedisConnection) redisConnection).getNativeConnection();
-                if (jedis != null) {
-                    try {
-                        String response = jedis.ping();
-                        System.out.println("Response from redis server: " + response);
-                    } catch (Exception e) {
-                        e.printStackTrace();
-                        // Handle connection error
-                    }
-                }
-            }
-        }
-    }
+			if (redisConnection instanceof JedisConnection) {
+
+				Jedis jedis = (Jedis) ((JedisConnection) redisConnection).getNativeConnection();
+				if (jedis != null) {
+					try {
+						String response = jedis.ping();
+						// System.out.println("Response from redis server: " + response);
+					} catch (Exception e) {
+						e.printStackTrace();
+						// Handle connection error
+					}
+				}
+			}
+		}
+	}
 }

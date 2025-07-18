@@ -1,4 +1,4 @@
-package com.bytetrade.obridge.component;
+package com.bytetrade.obridge.component.utils;
 
 import org.bitcoinj.core.Base58;
 import java.math.BigInteger;
@@ -20,6 +20,10 @@ public class AddressHelper {
 
     public static String getDecimalAddress(String rawAddress, Integer chainId) {
         if (chainId == 501) {
+            if (rawAddress.startsWith("0x")){
+                String hexStr = rawAddress.substring(2);
+                return new BigInteger(hexStr, 16).toString();
+            }
             // Decode Base58 for chainId 501
             byte[] decodedBytes = Base58.decode(rawAddress);
             return new BigInteger(1, decodedBytes).toString();

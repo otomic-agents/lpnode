@@ -1,38 +1,32 @@
 package com.bytetrade.obridge.bean;
 
-import com.bytetrade.obridge.bean.PreBusiness;
-import com.bytetrade.obridge.bean.Business;
-import com.bytetrade.obridge.bean.EventTransferOut;
-import com.bytetrade.obridge.bean.EventTransferIn;
-import com.bytetrade.obridge.bean.EventTransferOutConfirm;
-import com.bytetrade.obridge.bean.EventTransferInConfirm;
-import com.bytetrade.obridge.bean.EventTransferOutRefund;
-import com.bytetrade.obridge.bean.EventTransferInRefund;
-
 import lombok.*;
 import lombok.experimental.Accessors;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
+
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
-@Data
+@Getter
+@Setter
 @Accessors(chain = true)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
 @NoArgsConstructor
-public class BusinessFullData {
-    
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@AllArgsConstructor
+public class BusinessFullData<T extends BusinessFullData<T>> {
+
     PreBusiness preBusiness;
 
     Business business;
 
-    EventTransferOut eventTransferOut;
+    public T setPreBusiness(PreBusiness preBusiness) {
+        this.preBusiness = preBusiness;
+        return (T) this;
+    }
 
-    EventTransferIn eventTransferIn;
+    public T setBusiness(Business business) {
+        this.business = business;
+        return (T) this;
+    }
 
-    EventTransferOutConfirm eventTransferOutConfirm;
 
-    EventTransferInConfirm eventTransferInConfirm;
-
-    EventTransferOutRefund eventTransferOutRefund;
-
-    EventTransferInRefund eventTransferInRefund;
 }

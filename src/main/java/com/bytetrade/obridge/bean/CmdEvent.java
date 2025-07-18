@@ -3,15 +3,15 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
-import com.fasterxml.jackson.databind.PropertyNamingStrategy;
-
-import com.bytetrade.obridge.bean.PreBusiness;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
-public class CmdEvent {
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NONE)
+public class CmdEvent<T> {
 
     public static final String CMD_UPDATE_QUOTE = "CMD_UPDATE_QUOTE";
     public static final String EVENT_QUOTE_REMOVER = "EVENT_QUOTE_REMOVER";
@@ -21,6 +21,8 @@ public class CmdEvent {
 
     public static final String EVENT_LOCK_QUOTE = "EVENT_LOCK_QUOTE";
     public static final String CALLBACK_LOCK_QUOTE = "CALLBACK_LOCK_QUOTE";
+
+    public static final String EVENT_LOCKED_QUOTE  = "EVENT_LOCKED_QUOTE";
 
     public static final String EVENT_TRANSFER_OUT = "EVENT_TRANSFER_OUT";
     public static final String CMD_TRANSFER_IN = "CMD_TRANSFER_IN";
@@ -35,7 +37,10 @@ public class CmdEvent {
     public static final String EVENT_TRANSFER_IN_CONFIRM = "EVENT_TRANSFER_IN_CONFIRM";
     public static final String EVENT_TRANSFER_IN_REFUND = "EVENT_TRANSFER_IN_REFUND";
 
-    String cmd;// update quote, update_business_transfer_out_callback(require),lock_quote_callback(require), unlock_quote_callback(option), quote_removed_callback(option)
+    public static final String EVENT_INIT_SWAP = "EVENT_INIT_SWAP";
+    public static final String EVENT_CONFIRM_SWAP = "EVENT_CONFIRM_SWAP";
+    public static final String EVENT_REFUND_SWAP = "EVENT_CONFIRM_SWAP";
+    String cmd;
 
     QuoteData quoteData;
 
@@ -43,9 +48,11 @@ public class CmdEvent {
 
     PreBusiness preBusiness;
 
-    BusinessFullData businessFullData;
+    T businessFullData;
 
     String cid;
+
+    String lpId;
 
     String amount;
 }

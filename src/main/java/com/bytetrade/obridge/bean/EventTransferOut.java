@@ -2,22 +2,26 @@ package com.bytetrade.obridge.bean;
 
 import lombok.*;
 import lombok.experimental.Accessors;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
 @Accessors(chain = true)
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @NoArgsConstructor
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class EventTransferOut {
 
+    String transferInfo;
+    
     String uuid;
 
     Long transferOutId;
 
     Long businessId;
-
-    String transferInfo;
 
     String transferId;
 
@@ -31,9 +35,13 @@ public class EventTransferOut {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Long dstChainId;
 

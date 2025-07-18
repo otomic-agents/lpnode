@@ -3,21 +3,16 @@ package com.bytetrade.obridge.bean;
 import lombok.*;
 import lombok.experimental.Accessors;
 
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
 @NoArgsConstructor
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 @Accessors(chain = true)
 public class PreBusiness {
-
-    String uuid;
-
-    String outTradeUuid;
-
-    String inTradeUuid;
-
+    
     SwapAssetInformation swapAssetInformation;
 
     String hash;
@@ -33,6 +28,8 @@ public class PreBusiness {
     String hashlockSolana;
 
     Boolean locked;
+
+    String lockMessage;
 
     Long timestamp;
 

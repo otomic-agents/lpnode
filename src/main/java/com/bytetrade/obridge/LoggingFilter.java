@@ -1,7 +1,13 @@
 package com.bytetrade.obridge;
 
-import javax.servlet.http.*;
-import javax.servlet.*;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,21 +28,26 @@ public class LoggingFilter implements Filter {
 
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         HttpServletResponse httpResponse = (HttpServletResponse) response;
-
-        // Log before processing the request
-        logger.info("Request received - {} {} - IP: {}",
-                httpRequest.getMethod(),
-                httpRequest.getRequestURI(),
-                httpRequest.getRemoteAddr());
+        if (!httpRequest.getRequestURI().contains("/quote_and_live_confirmation")
+                && !httpRequest.getRequestURI().contains("/relay/web/fetch_business")) {
+            // Log before processing the request
+            logger.info("Request received - {} {} - IP: {}",
+                    httpRequest.getMethod(),
+                    httpRequest.getRequestURI(),
+                    httpRequest.getRemoteAddr());
+        }
 
         chain.doFilter(request, response);
 
         // Log after processing the request
         long processingTime = System.currentTimeMillis() - startTime;
-        logger.info("Request processed - {} {} - Processing Time: {} ms",
-                httpResponse.getStatus(),
-                httpRequest.getRequestURI(),
-                processingTime);
+        if (!httpRequest.getRequestURI().contains("/quote_and_live_confirmation")
+                && !httpRequest.getRequestURI().contains("/relay/web/fetch_business")) {
+            logger.info("Request processed - {} {} - Processing Time: {} ms",
+                    httpResponse.getStatus(),
+                    httpRequest.getRequestURI(),
+                    processingTime);
+        }
     }
 
     @Override

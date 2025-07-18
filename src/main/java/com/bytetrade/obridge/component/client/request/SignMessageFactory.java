@@ -1,24 +1,22 @@
 package com.bytetrade.obridge.component.client.request;
 
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.stereotype.Component;
+
+@Component
 public class SignMessageFactory {
-    public static RequestSignMessage createSignMessage(Integer chainId) {
-        switch (chainId) {
-            case 9006:
-                return new RequestSignMessage712();
-            case 9000:
-                return new RequestSignMessage712();
-            case 60:
-                return new RequestSignMessage712();
-            case 614:
-                return new RequestSignMessage712();
-            case 966:
-                return new RequestSignMessage712();
-            case 397:
-                return new RequestSignMessage712();
-            case 501:
-                return new RequestSignMessageSolana();
-            default:
-                throw new IllegalArgumentException("Unsupported chainId");
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    public AbstractSignMessage createSignMessage(String swapType) {
+        if ("SINGLECHAIN".equalsIgnoreCase(swapType)) {
+            return applicationContext.getBean(SingleChainSignMessage.class);
+        } else if ("ATOMIC".equalsIgnoreCase(swapType)) {
+            return applicationContext.getBean(AtomicSignMessage.class);
+        } else {
+            throw new IllegalArgumentException("Unsupported swapType: " + swapType);
         }
     }
 }

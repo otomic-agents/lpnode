@@ -2,16 +2,18 @@ package com.bytetrade.obridge.component.client.request;
 
 import lombok.*;
 import lombok.experimental.Accessors;
+
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.databind.PropertyNamingStrategy;
 import com.fasterxml.jackson.databind.annotation.JsonNaming;
 
 @Data
 @Accessors(chain = true)
 @NoArgsConstructor
-@JsonNaming(PropertyNamingStrategy.SnakeCaseStrategy.class)
+@JsonNaming(PropertyNamingStrategies.SnakeCaseStrategy.class)
 public class CommandTransferIn {
-    
-    String uuid; // Solana transactions have UUID
+
+    String bid;
 
     String senderWalletName;
 
@@ -25,9 +27,13 @@ public class CommandTransferIn {
 
     String hashLock;
 
-    Long stepTimeLock;
-
     Long agreementReachedTime;
+
+    Long expectedSingleStepTime;
+
+    Long tolerantSingleStepTime;
+
+    Long earliestRefundTime;
 
     Integer srcChainId;
 
